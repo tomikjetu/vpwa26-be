@@ -30,6 +30,9 @@ export default class Member extends BaseModel {
   @column()
   declare kick_votes: number
 
+  @column()
+  declare notif_status: 'all' | 'mentions' | 'none'
+
   // Relationships (for completeness)
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
