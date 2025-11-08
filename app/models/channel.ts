@@ -2,6 +2,8 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import User from './user.js'
 import Message from './message.js'
+import Member from './member.js'
+import Invite from './invite.js'
 import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
 
 export default class Channel extends BaseModel {
@@ -31,4 +33,10 @@ export default class Channel extends BaseModel {
 
   @hasMany(() => Message)
   declare messages: HasMany<typeof Message>
+
+  @hasMany(() => Member)
+  declare member: HasMany<typeof Member>
+
+  @hasMany(() => Invite)
+  declare invite: HasMany<typeof Invite>
 }

@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo} from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, hasMany} from '@adonisjs/lucid/orm'
 import User from './user.js'
 import Channel from './channel.js'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
+import KickVote from './kick_vote.js'
 
 export default class Member extends BaseModel {
   @column({ isPrimary: true })
@@ -26,10 +27,16 @@ export default class Member extends BaseModel {
   @column.dateTime()
   declare lastReadAt: DateTime | null
 
+  @column()
+  declare kick_votes: number
+
   // Relationships (for completeness)
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 
   @belongsTo(() => Channel)
   declare channel: BelongsTo<typeof Channel>
+
+  @hasMany(() => KickVote)
+  declare kickVote: HasMany<typeof KickVote>
 }

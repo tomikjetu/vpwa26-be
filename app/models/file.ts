@@ -11,10 +11,16 @@ export default class File extends BaseModel {
   declare messageId: number // Foreign Key to Messages
 
   @column()
-  declare content: string // Maps to 'text' in DB
+  declare path: string // Maps to 'text' in DB
 
   @column()
   declare name: string
+
+  @column()
+  declare size: number
+
+  @column()
+  declare mime_type: string
 
   @belongsTo(() => Message)
   declare message: BelongsTo<typeof Message>

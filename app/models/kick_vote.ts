@@ -6,7 +6,7 @@ export default class KickVote extends BaseModel {
   declare id: number
 
   @column()
-  declare memberId: number // Foreign Key to Member being voted on
+  declare votedUserId: number // Foreign Key to Member being voted on
 
   @column()
   declare voterUserId: number // Foreign Key to User who voted

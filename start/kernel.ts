@@ -40,5 +40,8 @@ router.use([() => import('@adonisjs/core/bodyparser_middleware'), () => import('
  */
 export const middleware = router.named({
   guest: () => import('#middleware/guest_middleware'),
-  auth: () => import('#middleware/auth_middleware')
+  auth: () => import('#middleware/auth_middleware'),
+  loadChannel: () => import('#middleware/load_channel_middleware'),
+  ownerStatus: () => import('#middleware/load_user_member_middleware'),
+  loadMember: () => import('#middleware/load_member_middleware')
 })

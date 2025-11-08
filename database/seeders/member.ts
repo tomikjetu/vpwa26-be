@@ -5,7 +5,7 @@ import Channel from '#models/channel'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import { DateTime } from 'luxon'
 
-type MemberColumn = 'id' | 'userId' | 'channelId' | 'isOwner' | 'joinedAt' | 'lastReadMessageId' | 'lastReadAt';
+type MemberColumn = 'id' | 'userId' | 'channelId' | 'isOwner' | 'joinedAt' | 'lastReadMessageId' | 'lastReadAt' | 'kick_votes';
 export default class MemberSeeder extends BaseSeeder {
   public async run() {
     const johnDoe = await User.findBy('nick', 'jd_admin')
@@ -29,6 +29,7 @@ export default class MemberSeeder extends BaseSeeder {
         joinedAt: DateTime.now().minus({ days: 7 }),
         lastReadMessageId: lastMessage.id,
         lastReadAt: DateTime.now(),
+        kick_votes: 0,
       },
       {
         userId: janeSmith.id,
@@ -37,6 +38,7 @@ export default class MemberSeeder extends BaseSeeder {
         joinedAt: DateTime.now().minus({ days: 6 }),
         lastReadMessageId: lastMessage.id,
         lastReadAt: DateTime.now(),
+        kick_votes: 0,
       },
       {
         userId: tomWilson.id,
@@ -46,6 +48,7 @@ export default class MemberSeeder extends BaseSeeder {
         // Tom hasn't read the latest message yet
         lastReadMessageId: lastMessage.id - 1, 
         lastReadAt: DateTime.now().minus({ hours: 10 }),
+        kick_votes: 1,
       },
     ])
   }

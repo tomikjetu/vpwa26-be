@@ -3,9 +3,10 @@ import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
-import * as ChannelModel from './channel.js'
-import * as MessageModel from './message.js'
-import * as MemberModel from './member.js'
+import Channel from './channel.js'
+import Message from './message.js'
+import Member from './member.js'
+import Invite from './invite.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
@@ -30,7 +31,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare nick: string
 
   @column()
-  declare passwdHash: string // Note: Consider a different name like 'password' and a mutator
+  declare passwdHash: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -39,12 +40,15 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare updatedAt: DateTime
 
   // Relationships (for completeness)
-  @hasMany(() => ChannelModel.default, { foreignKey: 'ownerId' })
-  declare ownedChannels: HasMany<typeof ChannelModel.default>
+  @hasMany(() => Channel, { foreignKey: 'ownerId' })
+  declare ownedChannel: HasMany<typeof Channel>
 
-  @hasMany(() => MessageModel.default)
-  declare messages: HasMany<typeof MessageModel.default>
+  @hasMany(() => Message)
+  declare message: HasMany<typeof Message>
 
-  @hasMany(() => MemberModel.default)
-  declare members: HasMany<typeof MemberModel.default>
+  @hasMany(() => Member)
+  declare member: HasMany<typeof Member>
+  
+  @hasMany(() => Invite)
+  declare invite: HasMany<typeof Invite>
 }

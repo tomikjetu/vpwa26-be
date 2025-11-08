@@ -17,13 +17,17 @@ export default class FileSeeder extends BaseSeeder {
     await File.createMany([
       {
         messageId: lastMessage.id,
-        content: '/path/to/project_plan.txt', // Placeholder for file path/data
+        path: '/path/to/project_plan.txt',
         name: 'project_plan.txt',
+        size: 15,
+        mime_type: 'txt',
       },
       {
         messageId: lastMessage.id,
-        content: '/path/to/screenshot.png',
+        path: '/path/to/screenshot.png',
         name: 'screenshot.png',
+        size: 100,
+        mime_type: 'png',
       },
     ])
   }

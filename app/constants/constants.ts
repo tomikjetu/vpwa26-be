@@ -1,0 +1,9 @@
+export const CHANNEL_CONSTANTS = {
+  NAME_MAX_LENGTH: 50,
+  NAME_MIN_LENGTH: 3,
+}
+
+export const KICK_VOTE_CONSTANTS = {
+  KICK_VOTES_START: 0,
+  KICK_TRESHHOLD: 3,
+}

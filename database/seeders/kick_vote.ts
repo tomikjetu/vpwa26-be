@@ -30,7 +30,7 @@ export default class KickVoteSeeder extends BaseSeeder {
     // Since this is a log of votes, we simply create new records
     await KickVote.createMany([
       {
-        memberId: tomMember.id, // The member being voted on (Tom)
+        votedUserId: tomMember.id, // The member being voted on (Tom)
         voterUserId: johnDoe.id, // The user who cast the vote (John)
         kickedByOwner: true, // Assuming John is the owner and this was his final vote/action
         createdAt: DateTime.now().minus({ hours: 1 }),

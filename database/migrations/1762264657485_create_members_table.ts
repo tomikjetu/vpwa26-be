@@ -18,9 +18,7 @@ export default class extends BaseSchema {
       table.boolean('is_owner').defaultTo(false).notNullable()
       table.timestamp('joined_at', { useTz: true }).notNullable()
       
-      // last_read_message_id is not nullable in the diagram but logically can be null
       table.integer('last_read_message_id').unsigned().nullable() 
-      // Note: This FK should reference messages.id, but we'll add it after the messages table is created.
 
       table.timestamp('last_read_at', { useTz: true }).nullable()
     })
