@@ -9,7 +9,7 @@ import Member from './member.js'
 import Invite from './invite.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 
-const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
+const AuthFinder = withAuthFinder(() => hash.use('argon2'), {
   uids: ['email'],
   passwordColumnName: 'passwdHash',
 })
