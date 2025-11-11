@@ -28,7 +28,16 @@ export default class UsersController {
 
 		const sessionToken = await this.generateSessionToken(user.id);
 
-		return response.ok({ message: 'Login successful', user: { id: user.id, nick: user.nick, email: user.email }, sessionToken })
+		return response.ok({ 
+			message: 'Login successful', 
+			user: { id: user.id, 
+					nick: user.nick,
+					email: user.email,
+					first_name: user.firstName,
+					last_name: user.lastName
+				 }, 
+				 sessionToken 
+			})
 	}
 
 	public async register(ctx: HttpContext) {
@@ -67,7 +76,18 @@ export default class UsersController {
 		const user = await User.create(userData)
 		const sessionToken = await this.generateSessionToken(user.id);
 
-		return response.created({ message: 'Registration successful', user: { id: user.id, nick: user.nick, email: user.email }, sessionToken })
+		return response.created({
+			 message: 'Registration successful',
+			 user: {
+					id: user.id,
+					nick: user.nick,
+					email: user.email,
+					first_name: user.firstName,
+					last_name: user.lastName
+				}, 
+				sessionToken 
+			}
+		)
 	}
 
 	public async updateStatus(ctx: HttpContext) {
