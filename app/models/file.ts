@@ -1,6 +1,6 @@
 import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import Message from './message.js'
-
+import Channel from './channel.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
 export default class File extends BaseModel {
@@ -22,6 +22,12 @@ export default class File extends BaseModel {
   @column()
   declare mime_type: string
 
+  @column()
+  declare channelId: number // Foreign key for channel
+
   @belongsTo(() => Message)
   declare message: BelongsTo<typeof Message>
+
+  @belongsTo(() => Channel)
+  declare channel: BelongsTo<typeof Channel>
 }

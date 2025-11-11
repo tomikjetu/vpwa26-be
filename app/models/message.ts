@@ -1,17 +1,17 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
-import User from './user.js'
 import Channel from './channel.js'
 import File from './file.js'
 
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+import Member from './member.js'
 
 export default class Message extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
   @column()
-  declare userId: number // Foreign Key to Users
+  declare memberId: number // Foreign Key to Users
 
   @column()
   declare channelId: number // Foreign Key to Channels
@@ -26,8 +26,8 @@ export default class Message extends BaseModel {
   declare updatedAt: DateTime
 
   // Relationships (for completeness)
-  @belongsTo(() => User)
-  declare user: BelongsTo<typeof User>
+  @belongsTo(() => Member)
+  declare member: BelongsTo<typeof Member>
 
   @belongsTo(() => Channel)
   declare channel: BelongsTo<typeof Channel>

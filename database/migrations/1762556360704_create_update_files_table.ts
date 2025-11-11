@@ -17,7 +17,7 @@ export default class extends BaseSchema {
       table.dropColumn('path')
       table.dropColumn('mime_type')
       table.dropColumn('size')
-      table.text('content').notNullable()
+      table.text('content').nullable()
     })
   }
 }

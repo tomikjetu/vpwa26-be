@@ -1,8 +1,8 @@
 import { Exception } from '@adonisjs/core/exceptions'
 
 export class InviteRequiredException extends Exception {
-  constructor() {
-    super('You must be invited to join this private channel.', {
+  constructor(action_name: string) {
+    super(`You must be invited to ${action_name}.`, {
       status: 403,
       code: 'INVITE_REQUIRED',
     })
@@ -38,9 +38,18 @@ export class ChannelNotFoundException extends Exception {
 
 export class MemberNotFoundException extends Exception {
   constructor() {
-    super('Channel has not been found.', {
+    super('Member has not been found.', {
       status: 403,
-      code: 'CHANNEL_NOT_FOUND',
+      code: 'MEMBER_NOT_FOUND',
+    })
+  }
+}
+
+export class UserNotFoundException extends Exception {
+  constructor() {
+    super('User has not been found.', {
+      status: 403,
+      code: 'USER_NOT_FOUND',
     })
   }
 }

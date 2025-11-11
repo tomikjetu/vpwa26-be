@@ -17,21 +17,21 @@ export default class MessageSeeder extends BaseSeeder {
 
     await Message.createMany([
       {
-        userId: johnDoe.id,
+        memberId: johnDoe.id,
         channelId: generalChannel.id,
         content: 'Welcome everyone to the general chat! Happy coding!',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       },
       {
-        userId: janeSmith.id,
+        memberId: janeSmith.id,
         channelId: generalChannel.id,
         content: 'Thanks, John! Great to be here.',
         createdAt: DateTime.now().plus({ minutes: 5 }),
         updatedAt: DateTime.now().plus({ minutes: 5 }),
       },
       {
-        userId: johnDoe.id,
+        memberId: johnDoe.id,
         channelId: generalChannel.id,
         content: 'Remember to check the new dev channel for updates.',
         createdAt: DateTime.now().plus({ minutes: 10 }),

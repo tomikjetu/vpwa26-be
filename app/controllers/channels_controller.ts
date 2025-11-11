@@ -1,12 +1,14 @@
 import Channel from '#models/channel'
-import User from '#models/user'
 import Invite from '#models/invite'
+import Member from '#models/member'
+import KickVote from '#models/kick_vote'
+import File from '#models/file'
 import { DateTime } from 'luxon'
 import { schema, rules } from '@adonisjs/validator'
 import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants.js'
 import type { HttpContext } from '@adonisjs/core/http'
-import { InviteRequiredException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
-
+import { ChannelNotFoundException, InviteRequiredException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
+import Drive from '@adonisjs/drive/services/main'
 
 /**
  * Helper — creates a new channel
@@ -48,6 +50,7 @@ async function createMember(channel: Channel, user_id: number, is_owned: boolean
     })
 }
 
+// ------------------------------------------------------------------------------------------------------------------------
 
 /**
  * Controller class
@@ -67,6 +70,15 @@ export default class ChannelsController {
   }
 
   /**
+   * Creates a new channel
+   */
+  public async create(ctx: HttpContext) {
+    return createChannel(ctx)
+  }
+
+
+
+  /**
    * Join an existing channel or create one if it doesn’t exist
    */
   public async join(ctx: HttpContext) {
@@ -77,7 +89,8 @@ export default class ChannelsController {
 
     if (!channel) return createChannel(ctx)
     
-    if (ctx.user_member) return ctx.response.ok({ message: 'Already joined', channel })
+    const user_member = await Member.findBy('user_id', user.id)
+    if (user_member) return ctx.response.ok({ message: 'Already joined', channel })
 
     // If channel is private
     if (channel.isPrivate) {
@@ -87,37 +100,12 @@ export default class ChannelsController {
             .where('user_id', user.id)
             .first()
 
-        if (!is_invited) throw new InviteRequiredException()
+        if (!is_invited) throw new InviteRequiredException('join a private channel')
     }
 
     await createMember(channel, user.id, false)
 
     return ctx.response.ok({ message: 'Joined channel', channel })
-  }
-
-  /**
-   * Invite a user to the channel
-   */
-  public async invite(ctx: HttpContext) {
-    const channel = ctx.channel!
-    
-    if (!ctx.user_member) throw new MembershipRequiredException("invite a new member")
-
-    if (channel.isPrivate && !ctx.user_member.isOwner) throw new OwnershipRequiredException("invite a new member to a private channel")
-
-    const { nickname } = ctx.params
-    const userToInvite = await User.findBy('nick', nickname)
-
-    if (!userToInvite) {
-      return ctx.response.notFound({ error: 'User not found' })
-    }
-
-    // Create invitation
-    await userToInvite.related('invite').create({
-        channelId: channel.id,
-    })
-
-    return ctx.response.ok({ message: `User ${nickname} invited` })
   }
 
   /**
@@ -129,6 +117,7 @@ export default class ChannelsController {
     const members = await channel
         .related('member')
         .query()
+        .select(['id', 'user_id', 'channel_id', 'is_owner', 'joined_at', 'kick_votes']) // omit notif_status
         .preload('user', (userQuery) => {
             userQuery.select(['nick', 'status'])
         })
@@ -193,26 +182,68 @@ export default class ChannelsController {
   }
 
   /**
+   * Update notif_status
+   */
+  public async updateNotifStatus(ctx: HttpContext) {
+    const { request, response } = ctx
+    const user_member = ctx.user_member
+
+    if (!user_member) throw new MembershipRequiredException('change notification status')
+
+    const notifSchema = schema.create({
+      notif_status: schema.enum(['all', 'mentions', 'none'] as const),
+    })
+
+    const payload = await request.validate({ schema: notifSchema })
+
+    // Update notif_status in database
+    user_member.notif_status = payload.notif_status
+    await user_member.save()
+
+    return response.ok({
+      message: 'Notification status updated successfully',
+      data: {
+        notif_status: user_member.notif_status,
+      },
+    })
+  }
+
+  /**
    * Kick a member — either immediate (owner) or via vote
    */
   public async kickMember(ctx: HttpContext) {
     const kicker_member = ctx.user_member!
     const kicked_member = ctx.member!
-    const user = ctx.auth.user!
 
     if (!kicker_member) throw new MembershipRequiredException('kick members')
+    
     // If the kicker is owner, remove immediately
     if (kicked_member.isOwner) {
       return ctx.response.forbidden({ error: 'Cannot kick the owner' })
     }
 
-    await kicked_member.related('kickVote').create({
-      voterUserId: user.id,
+    // Check for duplicate vote
+    const duplicate_vote = await KickVote
+      .query()
+      .where('voter_member_id', kicker_member.id)
+      .where('voted_member_id', kicked_member.id)
+
+    if (duplicate_vote) {
+      return ctx.response.forbidden({ error: 'Cannot kick the same member twice' })
+    }
+
+    await KickVote.create({
+      votedMemberId: kicked_member.id,
+      voterMemberId: kicker_member.id,
       kickedByOwner: kicker_member.isOwner,
       createdAt: DateTime.now(),
     })
 
-    const votes_count_obj = await kicked_member.related('kickVote').query().count('* as total')
+    const votes_count_obj = await KickVote
+        .query()
+        .where('voted_member_id', kicked_member.id)
+        .count('* as total')
+
     const votes_count = Number(votes_count_obj[0].$extras.total) // extras is where the aggregate columns are saved to
 
     if (kicker_member.isOwner || votes_count >= KICK_VOTE_CONSTANTS.KICK_TRESHHOLD) {
@@ -221,5 +252,38 @@ export default class ChannelsController {
     }
 
     return ctx.response.ok({ message: 'Kick vote added' })
+  }
+
+  /**
+   * Get a file
+   */
+  public async getFile({ params, auth, response }: HttpContext) {
+    const user = auth.user!
+
+    // Find the file
+    const file = await File.find(params.file_id)
+    if (!file) {
+      return response.notFound({ error: 'File not found' })
+    }
+
+    // Find the related channel
+    const channel = await Channel.find(file.channelId)
+
+    if (!channel) throw new ChannelNotFoundException()
+
+    // Check if user is a member of that channel
+    const isMember = await channel.related('member').query().where('user_id', user.id).first()
+    
+    if (!isMember) throw new MembershipRequiredException('accessing files')
+
+    // Stream the file
+    const fileStream = await Drive.use('fs').getStream(file.path)
+    response.stream(fileStream)
+
+    // Add headers for nicer downloads
+    response.header('Content-Type', file.mime_type)
+    response.header('Content-Disposition', `inline; filename="${file.name}"`)
+
+    return response
   }
 }
