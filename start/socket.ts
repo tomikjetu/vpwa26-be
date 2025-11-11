@@ -1,54 +1,38 @@
-/*
-|--------------------------------------------------------------------------
-| Attach socket.io to Adonis HTTP server
-|--------------------------------------------------------------------------
-|
-| This preload attaches a Socket.IO server to the underlying Node HTTP
-| server used by Adonis. It exports the `io` instance for other modules
-| to import if needed.
-|
-*/
-
+import app from '@adonisjs/core/services/app'
 import server from '@adonisjs/core/services/server'
 import { Server as IOServer } from 'socket.io'
+import SocketMessagesController from '#controllers/socket_messages_controller'
 
-// Try common property names to find underlying HTTP server
-const httpServer: any = (server as any).instance || (server as any).getInstance?.() || (server as any).httpServer
+let io: IOServer | undefined
 
-let io: any
+app.ready(() => {
+  const nodeServer = server.getNodeServer()
 
-function attach(srv: any) {
-  if (!srv) {
+  if (!nodeServer) {
     console.warn('Socket.IO: no HTTP server found to attach to')
     return
   }
 
-  io = new IOServer(srv, {
+  io = new IOServer(nodeServer, {
     cors: { origin: '*' },
   })
 
-  io.on('connection', (socket: any) => {
+  const messagesController = new SocketMessagesController()
+
+  io.on('connection', (socket) => {
     console.log('New WS connection:', socket.id)
 
-    socket.on('hello', (msg: string) => {
-      console.log('hello from', socket.id, msg)
-      socket.emit('hello:response', 'hi')
+    socket.on('channel:messages', (data: { channelId: number | string }) => {
+      messagesController.getChannelMessages(socket, data)
     })
 
-    socket.on('disconnect', (reason: any) => {
+    socket.on('disconnect', (reason) => {
       console.log('disconnect', socket.id, reason)
     })
   })
-}
 
-if (httpServer) {
-  attach(httpServer)
-} else {
-  // Defer attaching for the rare case the server isn't ready yet
-  setImmediate(() => {
-    const srv = (server as any).instance || (server as any).getInstance?.() || (server as any).httpServer
-    attach(srv)
-  })
-}
+  console.log('Socket.IO server attached successfully')
+})
 
+export { io }
 export default io
