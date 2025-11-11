@@ -1,8 +1,22 @@
 import User from '#models/user'
+import Session from '#models/session'
+import { randomUUID } from 'crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import hash from '@adonisjs/core/services/hash'
+import { DateTime } from 'luxon'
 
 export default class UsersController {
+	public async generateSessionToken(userId: number): Promise<string> {
+		const currentSession = await Session.findBy('user_id', userId);
+		if (currentSession) await currentSession.delete();
+		const session = await Session.create({
+			userId: userId,
+			accessToken: randomUUID(),
+			expiresAt: DateTime.now().plus({ days: 7 })
+		})
+		return session.accessToken
+	}
+
 	public async login(ctx: HttpContext) {
 		const { request, response } = ctx
 		const { email, password } = request.only(['email', 'password'])
@@ -12,8 +26,9 @@ export default class UsersController {
 		const isValid = user ? await hash.verify(user.passwdHash, password) : false
 		if (!isValid || !user) return response.unauthorized({ error: 'Invalid credentials' })
 
+		const sessionToken = await this.generateSessionToken(user.id);
 
-		return response.ok({ message: 'Login successful', user: { id: user.id, nick: user.nick, email: user.email } })
+		return response.ok({ message: 'Login successful', user: { id: user.id, nick: user.nick, email: user.email }, sessionToken })
 	}
 
 	public async register(ctx: HttpContext) {
@@ -50,8 +65,9 @@ export default class UsersController {
 		}
 
 		const user = await User.create(userData)
+		const sessionToken = await this.generateSessionToken(user.id);
 
-		return response.created({ message: 'Registration successful', user: { id: user.id, nick: user.nick, email: user.email } })
+		return response.created({ message: 'Registration successful', user: { id: user.id, nick: user.nick, email: user.email }, sessionToken })
 	}
 
 	public async updateStatus(ctx: HttpContext) {
