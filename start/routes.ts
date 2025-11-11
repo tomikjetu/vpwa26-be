@@ -20,8 +20,7 @@ router.group(() => {
 
 
   router.group(() => {
-  router.post('/channels/:channel_id/invite/:nickname', '#controllers/channels_controller.invite') // Invites a user to a channel
-    // router.post('/channels/:channel_id/notifications', 'channels_controller.toggleNotifications') // Changes notification state for a channel: body params => notification_status
+  // router.post('/channels/:channel_id/notifications', 'channels_controller.toggleNotifications') // Changes notification state for a channel: body params => notification_status
 
   router.post('/user/status', '#controllers/users_controller.updateStatus') // For updating user status between Online, DND, Offline: body params => status
   router.get('/user', '#controllers/users_controller.show') // For showing user information, specifically status and nickname
