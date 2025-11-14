@@ -20,15 +20,15 @@ router.group(() => {
 
 
   router.group(() => {
-  // router.post('/channels/:channel_id/notifications', 'channels_controller.toggleNotifications') // Changes notification state for a channel: body params => notification_status
-
+    
+    router.get('/user/me', '#controllers/users_controller.show') // For showing user information, specifically status and nickname
+    router.post('/user/logout', '#controllers/users_controller.logout') // Logout: invalidates the current session
+    
+    
+    // TODO: remove the following routes, add them to socket handlers instead
+    
+    // router.post('/channels/:channel_id/notifications', 'channels_controller.toggleNotifications') // Changes notification state for a channel: body params => notification_status
   router.post('/user/status', '#controllers/users_controller.updateStatus') // For updating user status between Online, DND, Offline: body params => status
-  router.get('/user/me', '#controllers/users_controller.show') // For showing user information, specifically status and nickname
-  router.post('/user/logout', '#controllers/users_controller.logout') // Logout: invalidates the current session
-  
-
-  // TODO: remove the following routes, add them to socket handlers instead
-
   router.get('/channels', '#controllers/channels_controller.index') // Returns all channels a user owns or joined
   router.get('/channels/invites', '#controllers/invites_controller.index') // Returns all pending channel invites of the user
 

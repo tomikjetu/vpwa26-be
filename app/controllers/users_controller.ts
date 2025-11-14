@@ -90,20 +90,6 @@ export default class UsersController {
 		)
 	}
 
-	public async updateStatus(ctx: HttpContext) {
-		const { request, auth, response } = ctx
-		const { status } = request.only(['status'])
-		const user = auth.user ?? (ctx as any).user
-		if (!user) return response.unauthorized()
-
-		// Minimal: set a status field if present on model; otherwise just acknowledge
-		// (Assumes `status` column exists; if not, this is a no-op placeholder)
-		user.status = status
-		await user.save()
-
-		return response.ok({ message: 'Status updated', status })
-	}
-
 	public async logout(ctx: HttpContext) {
 		const { auth, response } = ctx
 		const user = auth.user ?? (ctx as any).user
