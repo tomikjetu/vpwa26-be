@@ -14,7 +14,7 @@ import { middleware } from '#start/kernel'
 router.group(() => {
   router.post('/user/login', '#controllers/users_controller.login') // Login: body params => email, password
   router.post('/user/register', '#controllers/users_controller.register') // Register: body params => first_name, last_name, nick, email, password
-}).middleware([middleware.guest()])
+}).middleware([])
 
 // Protected routes (require authentication) 
 
@@ -23,7 +23,11 @@ router.group(() => {
   // router.post('/channels/:channel_id/notifications', 'channels_controller.toggleNotifications') // Changes notification state for a channel: body params => notification_status
 
   router.post('/user/status', '#controllers/users_controller.updateStatus') // For updating user status between Online, DND, Offline: body params => status
-  router.get('/user', '#controllers/users_controller.show') // For showing user information, specifically status and nickname
+  router.get('/user/me', '#controllers/users_controller.show') // For showing user information, specifically status and nickname
+  router.post('/user/logout', '#controllers/users_controller.logout') // Logout: invalidates the current session
+  
+
+  // TODO: remove the following routes, add them to socket handlers instead
 
   router.get('/channels', '#controllers/channels_controller.index') // Returns all channels a user owns or joined
   router.get('/channels/invites', '#controllers/invites_controller.index') // Returns all pending channel invites of the user
