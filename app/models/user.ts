@@ -8,6 +8,7 @@ import Message from './message.js'
 import Member from './member.js'
 import Invite from './invite.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
+import type { UserStatus } from 'types/string_literals.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('argon2'), {
   uids: ['email'],
@@ -29,6 +30,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column()
   declare nick: string
+
+  @column() 
+  declare status: UserStatus
 
   @column()
   declare passwdHash: string

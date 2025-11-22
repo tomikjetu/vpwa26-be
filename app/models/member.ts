@@ -4,6 +4,7 @@ import User from './user.js'
 import Channel from './channel.js'
 import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
 import KickVote from './kick_vote.js'
+import type { NotifStatus } from 'types/string_literals.js'
 
 export default class Member extends BaseModel {
   @column({ isPrimary: true })
@@ -31,7 +32,7 @@ export default class Member extends BaseModel {
   declare kick_votes: number
 
   @column()
-  declare notif_status: 'all' | 'mentions' | 'none'
+  declare notif_status: NotifStatus
 
   // Relationships (for completeness)
   @belongsTo(() => User)

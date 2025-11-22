@@ -6,11 +6,11 @@ import KickVote from '#models/kick_vote'
 import File from '#models/file'
 import { DateTime } from 'luxon'
 import { schema, rules } from '@adonisjs/validator'
-import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants.js'
+import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants'
 import { ChannelNotFoundException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
 import Drive from '@adonisjs/drive/services/main'
 import { validator } from '@adonisjs/validator'
-import { NotifStatus } from 'types/notification.js'
+import { NotifStatus } from 'types/string_literals.js'
 import { CancelChannel_Response, CastKickVote_Response, GetFile_Response, JoinChannel_Response } from 'types/service_return_types.js'
 
 /**
@@ -226,8 +226,8 @@ export default class ChannelsService {
         }
 
         await KickVote.create({
-        votedMemberId: target_member.id,
-        voterMemberId: acting_member.id,
+        targetMemberId: target_member.id,
+        actingMemberId: acting_member.id,
         kickedByOwner: acting_member.isOwner,
         createdAt: DateTime.now(),
         })

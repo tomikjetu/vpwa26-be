@@ -10,6 +10,11 @@
       "#middleware/*": ["app/middleware/*"],
       "#exceptions/*": ["app/exceptions/*"],
       "#constants/*": ["app/constants/*"]
-    }
+    },
+    "types": ["node"],
+    "typeRoots": [
+      "./types",
+      "node_modules/@types"
+    ]
   }
 }

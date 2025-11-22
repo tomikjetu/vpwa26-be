@@ -5,9 +5,11 @@ import { Server as IOServer } from 'socket.io'
 import ChannelsController from '#controllers/channels_controller'
 import InvitesController from '#controllers/invites_controller'
 import MessagesController from '#controllers/messages_controller'
+import UsersSocketController from "#controllers/users_socket_controller"
 
 import Session from '#models/session'
 import { DateTime } from 'luxon'
+import { UserStatus } from 'types/string_literals.js'
 
 let io: IOServer | undefined
 
@@ -62,6 +64,7 @@ app.ready(() => {
   const channelsController = new ChannelsController()
   const invitesController = new InvitesController()
   const messagesController = new MessagesController()
+  const usersController = new UsersSocketController()
 
   // ────────────────────────────────────────────────────────────────
   // CONNECTION HANDLER
@@ -142,6 +145,13 @@ app.ready(() => {
 
     socket.on('msg:send', (data: { channelId: number; content?: string; files?: any[] }) =>
       messagesController.send(socket, io!, data)
+    )
+
+    // ────────────────────────────────────────────────────────────────
+    // USER EVENTS
+    // ────────────────────────────────────────────────────────────────
+    socket.on("user:status", (data: { status: UserStatus }) =>
+      usersController.updateStatus(socket, io!, data)
     )
 
     // ────────────────────────────────────────────────────────────────

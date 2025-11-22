@@ -4,10 +4,9 @@ import Invite from '#models/invite'
 import Member from '#models/member'
 import KickVote from '#models/kick_vote'
 import { DateTime } from 'luxon'
-import { KICK_VOTE_CONSTANTS } from '#constants/constants.js'
-import type { HttpContext } from '@adonisjs/core/http'
 import { DuplicateInviteException, InviteRequiredException, MemberInvitedAgainException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
 import { CreateInvite_Response } from 'types/service_return_types.js'
+import { KICK_VOTE_CONSTANTS } from '#constants/constants'
 
 /**
  * Controller class

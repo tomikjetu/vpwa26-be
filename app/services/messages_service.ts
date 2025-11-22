@@ -5,7 +5,7 @@ import User from '#models/user'
 import { IncorrectMessageFormatException, MembershipRequiredException } from '#exceptions/exceptions'
 import Message from '#models/message'
 import { DateTime } from 'luxon'
-import { MESSAGE_CONSTANTS } from '#constants/constants.js'
+import { MESSAGE_CONSTANTS } from '#constants/constants'
 import Drive from '@adonisjs/drive/services/main'
 import { UploadedFile } from 'types/uploaded_file.js'
 

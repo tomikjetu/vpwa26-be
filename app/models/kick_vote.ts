@@ -8,10 +8,10 @@ export default class KickVote extends BaseModel {
   declare id: number
 
   @column()
-  declare votedMemberId: number // Foreign Key to Member being voted on
+  declare targetMemberId: number // Foreign Key to Member being voted on
 
   @column()
-  declare voterMemberId: number // Foreign Key to Member who voted
+  declare actingMemberId : number // Foreign Key to Member who voted
 
   @column()
   declare kickedByOwner: boolean
@@ -21,8 +21,8 @@ export default class KickVote extends BaseModel {
   
   // Relationships (for completeness)
   @belongsTo(() => Member)
-  declare voted_member: BelongsTo<typeof Member>
+  declare targetMember: BelongsTo<typeof Member>
 
   @belongsTo(() => Member)
-  declare voter_member: BelongsTo<typeof Member>
+  declare actingMember: BelongsTo<typeof Member>
 }
