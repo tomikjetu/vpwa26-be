@@ -1,0 +1,1 @@
+export type NotifStatus = 'all' | 'mentions' | 'none'

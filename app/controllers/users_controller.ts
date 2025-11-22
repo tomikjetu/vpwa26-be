@@ -6,6 +6,7 @@ import hash from '@adonisjs/core/services/hash'
 import { DateTime } from 'luxon'
 
 export default class UsersController {
+	
 	public async generateSessionToken(userId: number): Promise<string> {
 		const currentSession = await Session.findBy('user_id', userId);
 		if (currentSession) await currentSession.delete();

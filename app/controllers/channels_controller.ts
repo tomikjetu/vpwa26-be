@@ -1,289 +1,192 @@
-import Channel from '#models/channel'
-import Invite from '#models/invite'
-import Member from '#models/member'
-import KickVote from '#models/kick_vote'
-import File from '#models/file'
-import { DateTime } from 'luxon'
-import { schema, rules } from '@adonisjs/validator'
-import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants.js'
-import type { HttpContext } from '@adonisjs/core/http'
-import { ChannelNotFoundException, InviteRequiredException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
-import Drive from '@adonisjs/drive/services/main'
+import { Server as IOServer, Socket } from "socket.io"
+import ChannelsService from "#services/channels_service"
 
-/**
- * Helper — creates a new channel
- */
-async function createChannel(ctx: HttpContext) {
-  const { request, auth, response } = ctx
+import ChannelResolver from "#services/resolvers/channel_resolver"
+import MemberResolver from "#services/resolvers/member_resolver"
+import UserResolver from "#services/resolvers/user_resolver"
 
-  const channelSchema = schema.create({
-    name: schema.string({}, [
-      rules.maxLength(CHANNEL_CONSTANTS.NAME_MAX_LENGTH),
-      rules.minLength(CHANNEL_CONSTANTS.NAME_MIN_LENGTH),
-    ]),
-    isPrivate: schema.boolean.optional(),
-  })
-
-  const data = await request.validate({ schema: channelSchema })
-
-  const channel = await Channel.create({
-    name: data.name,
-    isPrivate: data.isPrivate ?? false,
-    ownerId: auth.user!.id,
-  })
-
-  // Automatically add creator as member
-  await createMember(channel, auth.user!.id, true)
-
-  return response.created({ message: 'Channel created', channel })
-}
-
-/**
- * Helper - creates new member
- */
-async function createMember(channel: Channel, user_id: number, is_owned: boolean) {
-    await channel.related('member').create({
-        channelId: user_id,
-        isOwner: is_owned,
-        joinedAt: DateTime.now(),
-        kick_votes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
-    })
-}
-
-// ------------------------------------------------------------------------------------------------------------------------
-
-/**
- * Controller class
- */
 export default class ChannelsController {
-  /**
-   * Return all channels the user owns or joined
-   */
-  public async index(ctx: HttpContext) {
-    const user = ctx.auth.user!
 
-    const channels = await Channel.query().whereHas('member', (memberQuery) => {
-      memberQuery.where('user_id', user.id)
-    })
-
-    return ctx.response.ok(channels)
+  /** Join socket to socket.io rooms */
+  private async joinRooms(socket: Socket, channelId: number) : Promise<void> {
+    socket.join(`channel:${channelId}`)
   }
 
-  /**
-   * Creates a new channel
-   */
-  public async create(ctx: HttpContext) {
-    return createChannel(ctx)
+  /** Emit channel update to all members */
+  private broadcastToChannel(io: IOServer, channelId: number, payload: any) : void {
+    io.to(`channel:${channelId}`).emit("channel:event", payload)
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // GET JOINED CHANNELS
+  // ────────────────────────────────────────────────────────────────
+  public async listJoinedChannels(socket: Socket) : Promise<void> {
+    try {
+      const user = await UserResolver.curr(socket)
 
+      const channels = await ChannelsService.getChannelsByUserId(user.id)
 
-  /**
-   * Join an existing channel or create one if it doesn’t exist
-   */
-  public async join(ctx: HttpContext) {
-    const name = ctx.params.name
-    const user = ctx.auth.user!
+      socket.emit("channel:event", {
+        type: "channels_list",
+        channels
+      })
 
-    let channel = await Channel.findBy('name', name)
-
-    if (!channel) return createChannel(ctx)
-    
-    const user_member = await Member.findBy('user_id', user.id)
-    if (user_member) return ctx.response.ok({ message: 'Already joined', channel })
-
-    // If channel is private
-    if (channel.isPrivate) {
-        // Check for invites
-        const is_invited = await Invite.query()
-            .where('channel_id', channel.id)
-            .where('user_id', user.id)
-            .first()
-
-        if (!is_invited) throw new InviteRequiredException('join a private channel')
-    }
-
-    await createMember(channel, user.id, false)
-
-    return ctx.response.ok({ message: 'Joined channel', channel })
-  }
-
-  /**
-   * List all members in a channel
-   */
-  public async listMembers(ctx: HttpContext) {
-    const channel = ctx.channel!
-
-    const members = await channel
-        .related('member')
-        .query()
-        .select(['id', 'user_id', 'channel_id', 'is_owner', 'joined_at', 'kick_votes']) // omit notif_status
-        .preload('user', (userQuery) => {
-            userQuery.select(['nick', 'status'])
-        })
-
-    return ctx.response.ok(members)
-  }
-
-  /**
-   * List all invited users (not yet joined)
-   */
-  public async listInvited(ctx: HttpContext) {
-    const channel = ctx.channel
-    if(!channel) return
-
-    const invites = await channel
-        .related('invite')
-        .query()
-        .preload('user', (userQuery) => {
-            userQuery.select(['nick'])
-        })
-
-    return ctx.response.ok(invites)
-  }
-
-  /**
-   * Cancel (owner deletes, member leaves)
-   */
-  public async cancel(ctx: HttpContext) {
-    const channel = ctx.channel!
-
-    if (ctx.user_member!.isOwner) {
-      await channel.delete()
-      return ctx.response.ok({ message: 'Channel deleted by owner' })
-    } else {
-      await ctx.user_member!.delete()
-      return ctx.response.ok({ message: 'You left the channel' })
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
     }
   }
 
-  /**
-   * Quit — only owner can permanently delete
-   */
-  public async quit(ctx: HttpContext) {
-    const channel = ctx.channel!
+  // ────────────────────────────────────────────────────────────────
+  // CREATE CHANNEL
+  // ────────────────────────────────────────────────────────────────
+  public async create(socket: Socket, data: { name: string; isPrivate?: boolean }) : Promise<void> {
+    try {
+      const user = await UserResolver.curr(socket)
 
-    if (ctx.user_member!.isOwner) throw new OwnershipRequiredException('delete channel')
+      const channel = await ChannelsService.createChannel(user, data)
 
-    await channel.delete()
+      await this.joinRooms(socket, channel.id)
 
-    return ctx.response.ok({ message: 'Channel deleted permanently' })
-  }
-  
-  /**
-   * Revoke a member (temporarily remove)
-   */
-  public async revokeMember(ctx: HttpContext) {
-    if (ctx.user_member!.isOwner) throw new OwnershipRequiredException('revoke member')
+      socket.emit("channel:event", {
+        type: "channel_created",
+        channel
+      })
 
-    await ctx.member!.delete()
-
-    return ctx.response.ok({ message: 'Member revoked' })
-  }
-
-  /**
-   * Update notif_status
-   */
-  public async updateNotifStatus(ctx: HttpContext) {
-    const { request, response } = ctx
-    const user_member = ctx.user_member
-
-    if (!user_member) throw new MembershipRequiredException('change notification status')
-
-    const notifSchema = schema.create({
-      notif_status: schema.enum(['all', 'mentions', 'none'] as const),
-    })
-
-    const payload = await request.validate({ schema: notifSchema })
-
-    // Update notif_status in database
-    user_member.notif_status = payload.notif_status
-    await user_member.save()
-
-    return response.ok({
-      message: 'Notification status updated successfully',
-      data: {
-        notif_status: user_member.notif_status,
-      },
-    })
-  }
-
-  /**
-   * Kick a member — either immediate (owner) or via vote
-   */
-  public async kickMember(ctx: HttpContext) {
-    const kicker_member = ctx.user_member!
-    const kicked_member = ctx.member!
-
-    if (!kicker_member) throw new MembershipRequiredException('kick members')
-    
-    // If the kicker is owner, remove immediately
-    if (kicked_member.isOwner) {
-      return ctx.response.forbidden({ error: 'Cannot kick the owner' })
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
     }
-
-    // Check for duplicate vote
-    const duplicate_vote = await KickVote
-      .query()
-      .where('voter_member_id', kicker_member.id)
-      .where('voted_member_id', kicked_member.id)
-
-    if (duplicate_vote) {
-      return ctx.response.forbidden({ error: 'Cannot kick the same member twice' })
-    }
-
-    await KickVote.create({
-      votedMemberId: kicked_member.id,
-      voterMemberId: kicker_member.id,
-      kickedByOwner: kicker_member.isOwner,
-      createdAt: DateTime.now(),
-    })
-
-    const votes_count_obj = await KickVote
-        .query()
-        .where('voted_member_id', kicked_member.id)
-        .count('* as total')
-
-    const votes_count = Number(votes_count_obj[0].$extras.total) // extras is where the aggregate columns are saved to
-
-    if (kicker_member.isOwner || votes_count >= KICK_VOTE_CONSTANTS.KICK_TRESHHOLD) {
-      await kicked_member.delete()
-      return ctx.response.ok({ message: `Member kicked (${kicked_member.isOwner ? 'owner kick' : 'enough votes'})` })
-    }
-
-    return ctx.response.ok({ message: 'Kick vote added' })
   }
 
-  /**
-   * Get a file
-   */
-  public async getFile({ params, auth, response }: HttpContext) {
-    const user = auth.user!
+  // ────────────────────────────────────────────────────────────────
+  // JOIN CHANNEL
+  // ────────────────────────────────────────────────────────────────
+  public async join(socket: Socket, io: IOServer, data: { name: string }) : Promise<void> {
+    try {
+      const user = await UserResolver.curr(socket)
 
-    // Find the file
-    const file = await File.find(params.file_id)
-    if (!file) {
-      return response.notFound({ error: 'File not found' })
+      const result = await ChannelsService.joinChannel(user, data.name)
+
+      await this.joinRooms(socket, result.channel.id)
+
+      this.broadcastToChannel(io, result.channel.id, {
+        type: "member_joined",
+        channelId: result.channel.id,
+        user: { id: user.id, nick: user.nick }
+      })
+
+      socket.emit("channel:event", {
+        type: "joined_success",
+        channel: result.channel
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
     }
-
-    // Find the related channel
-    const channel = await Channel.find(file.channelId)
-
-    if (!channel) throw new ChannelNotFoundException()
-
-    // Check if user is a member of that channel
-    const isMember = await channel.related('member').query().where('user_id', user.id).first()
-    
-    if (!isMember) throw new MembershipRequiredException('accessing files')
-
-    // Stream the file
-    const fileStream = await Drive.use('fs').getStream(file.path)
-    response.stream(fileStream)
-
-    // Add headers for nicer downloads
-    response.header('Content-Type', file.mime_type)
-    response.header('Content-Disposition', `inline; filename="${file.name}"`)
-
-    return response
   }
+
+  // ────────────────────────────────────────────────────────────────
+  // LIST MEMBERS
+  // ────────────────────────────────────────────────────────────────
+  public async listMembers(socket: Socket, data: { channelId: number }) : Promise<void> {
+    try {
+      const channel = await ChannelResolver.byId(data.channelId)
+
+      const members = await ChannelsService.getMembersByChannelId(channel)
+
+      socket.emit("channel:event", {
+        type: "members_list",
+        channelId: channel.id,
+        members
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // GET INVITED USERS
+  // ────────────────────────────────────────────────────────────────
+  public async listInvites(socket: Socket, data: { channelId: number }) : Promise<void> {
+    try {
+      const channel = await ChannelResolver.byId(data.channelId)
+
+      const invited = await ChannelsService.getInvitedMembers(channel)
+
+      socket.emit("channel:event", {
+        type: "invites_list",
+        channelId: channel.id,
+        invited
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // CANCEL CHANNEL / LEAVE
+  // ────────────────────────────────────────────────────────────────
+  public async cancel(socket: Socket, io: IOServer, data: { channelId: number }) : Promise<void> {
+    try {
+      const user = await UserResolver.curr(socket)
+      const channel = await ChannelResolver.byId(data.channelId)
+      const member = await MemberResolver.byUser(socket, data.channelId)
+
+      const result = await ChannelsService.cancelChannel(channel, member!)
+
+      this.broadcastToChannel(io, channel.id, {
+        type: result.deleted ? "channel_deleted" : "member_left",
+        channelId: channel.id,
+        userId: user.id
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // KICK MEMBER
+  // ────────────────────────────────────────────────────────────────
+  public async kick(socket: Socket, io: IOServer, data: { channelId: number; targetMemberId: number }) : Promise<void> {
+    try {
+      const channel = await ChannelResolver.byId(data.channelId)
+
+      const kicker = await MemberResolver.byUser(socket, data.channelId)
+      const target = await MemberResolver.byId(data.targetMemberId)
+
+      const result = await ChannelsService.castKickVote(kicker!, target)
+
+      this.broadcastToChannel(io, channel.id, {
+        type: "kick_result",
+        channelId: channel.id,
+        result
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // UPDATE NOTIFICATION STATUS
+  // ────────────────────────────────────────────────────────────────
+  public async updateNotif(socket: Socket, io: IOServer, data: { channelId: number; status: string }) : Promise<void> {
+    try {
+      const member = await MemberResolver.byUser(socket, data.channelId)
+      const notif_status = await ChannelsService.updateNotifStatus(member!, data.status as any)
+
+      this.broadcastToChannel(io, data.channelId, {
+        type: "notif_updated",
+        channelId: data.channelId,
+        status: notif_status,
+        memberId: member!.id
+      })
+
+    } catch (err: any) {
+      socket.emit("error", { error: err.message })
+    }
+  }
+
 }
