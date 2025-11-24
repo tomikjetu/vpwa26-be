@@ -35,7 +35,7 @@ export default class Channel extends BaseModel {
   declare messages: HasMany<typeof Message>
 
   @hasMany(() => Member)
-  declare member: HasMany<typeof Member>
+  declare members: HasMany<typeof Member>
 
   @hasMany(() => Invite)
   declare invite: HasMany<typeof Invite>

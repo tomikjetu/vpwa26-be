@@ -10,7 +10,7 @@ export default class Member extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'user_id' })
   declare userId: number // Foreign Key to Users
 
   @column()
@@ -29,18 +29,25 @@ export default class Member extends BaseModel {
   declare lastReadAt: DateTime | null
 
   @column()
-  declare kick_votes: number
+  declare kickVotes: number
 
   @column()
   declare notif_status: NotifStatus
 
   // Relationships (for completeness)
-  @belongsTo(() => User)
+  @belongsTo(() => User, {foreignKey: 'userId'})
   declare user: BelongsTo<typeof User>
 
   @belongsTo(() => Channel)
   declare channel: BelongsTo<typeof Channel>
 
-  @hasMany(() => KickVote)
-  declare kickVote: HasMany<typeof KickVote>
+  @hasMany(() => KickVote, {
+    foreignKey: 'targetMemberId',
+  })
+  declare receivedKickVotes: HasMany<typeof KickVote>
+
+  @hasMany(() => KickVote, {
+    foreignKey: 'actingMemberId',
+  })
+  declare castKickVotes: HasMany<typeof KickVote>
 }

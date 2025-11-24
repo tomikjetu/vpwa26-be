@@ -8,22 +8,21 @@ import UserResolver from "#services/resolvers/user_resolver"
 export default class MessagesController {
 
     /** Emit message to channel */
-    private broadcastToChannel(io: IOServer, channelId: number, payload: any): void {
-        io.to(`channel:${channelId}`).emit("channel:event", payload)
+    private broadcastToChannel(io: IOServer, channelId: number, event: string, payload: any): void {
+        io.to(`channel:${channelId}`).emit(event, payload)
     }
 
     // ────────────────────────────────────────────────────────────────
     // LIST MESSAGES (Paginated batch)
     // ────────────────────────────────────────────────────────────────
-    public async list(socket: Socket, data: { channelId: number }): Promise<void> {
+    public async list(socket: Socket, data: { channelId: number, offset: number }): Promise<void> {
         try {
             const channel = await ChannelResolver.byId(data.channelId)
+            const member = await MemberResolver.byUser(socket, data.channelId)
 
-            const result = await MessagesService.getMessages(channel)
+            const result = await MessagesService.getMessages(channel, member, data.offset)
 
-            socket.emit("channel:event", {
-                type: "messages_list",
-                channelId: channel.id,
+            socket.emit("msg:list", {
                 ...result,
             })
 
@@ -53,8 +52,7 @@ export default class MessagesController {
                 data.files || []
             )
 
-            this.broadcastToChannel(io, channel.id, {
-                type: "message_created",
+            this.broadcastToChannel(io, channel.id, "message:new", {
                 channelId: channel.id,
                 message: result,
             })

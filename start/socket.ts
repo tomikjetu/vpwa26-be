@@ -88,11 +88,16 @@ app.ready(() => {
     }
 
     // Send joined channels initially
-    channelsController.listJoinedChannels(socket)
+    channelsController.listChannels(socket)
 
     // ────────────────────────────────────────────────────────────────
     // CHANNEL EVENTS
     // ────────────────────────────────────────────────────────────────
+
+    socket.on('channel:list', () => 
+      channelsController.listChannels(socket)
+    )
+
     socket.on('channel:create', (data: { name: string; isPrivate?: boolean }) =>
       channelsController.create(socket, data)
     )
@@ -113,7 +118,11 @@ app.ready(() => {
       channelsController.cancel(socket, io!, data)
     )
 
-    socket.on('channel:kick', (data: { channelId: number; targetMemberId: number }) =>
+    socket.on('channel:quit', (data: { channelId: number }) =>
+      channelsController.quit(socket, io!, data)
+    )
+
+    socket.on('member:kick-vote', (data: { channelId: number; targetMemberId: number }) =>
       channelsController.kick(socket, io!, data)
     )
 
@@ -139,7 +148,7 @@ app.ready(() => {
     // ────────────────────────────────────────────────────────────────
     // MESSAGE EVENTS (using prefix msg:*)
     // ────────────────────────────────────────────────────────────────
-    socket.on('msg:list', (data: { channelId: number }) =>
+    socket.on('msg:list', (data: { channelId: number, offset: number }) =>
       messagesController.list(socket, data)
     )
 

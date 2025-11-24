@@ -90,3 +90,12 @@ export class IncorrectMessageFormatException extends Exception {
     })
   }
 }
+
+export class ProhibitedKickVoteException extends Exception {
+  constructor(invalid_target_name: string) {
+    super(`You cannot vote to kick ${invalid_target_name}.`, {
+      status: 403,
+      code: 'PROHIBITED_KICK_VOTE',
+    })
+  }
+}

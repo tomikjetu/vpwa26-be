@@ -1,11 +1,18 @@
 import Channel from "#models/channel"
 import Stream from "stream"
 import User from '#models/user'
+import Member from "#models/member"
+
+export interface CreateChannel_Response {
+    channel: Channel,
+    member: Member,
+}
 
 export interface JoinChannel_Response { 
     channel: Channel, 
     created: boolean, 
-    joined: boolean
+    joined: boolean,
+    member: Member,
 }
 
 export interface CancelChannel_Response {

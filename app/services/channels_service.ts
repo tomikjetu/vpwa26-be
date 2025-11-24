@@ -7,11 +7,11 @@ import File from '#models/file'
 import { DateTime } from 'luxon'
 import { schema, rules } from '@adonisjs/validator'
 import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants'
-import { ChannelNotFoundException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
+import { ChannelNotFoundException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException, ProhibitedKickVoteException } from '#exceptions/exceptions'
 import Drive from '@adonisjs/drive/services/main'
 import { validator } from '@adonisjs/validator'
 import { NotifStatus } from 'types/string_literals.js'
-import { CancelChannel_Response, CastKickVote_Response, GetFile_Response, JoinChannel_Response } from 'types/service_return_types.js'
+import { CancelChannel_Response, CastKickVote_Response, CreateChannel_Response, GetFile_Response, JoinChannel_Response } from 'types/service_return_types.js'
 
 /**
  * Helper — creates a new channel
@@ -30,7 +30,7 @@ export default class ChannelsService {
     /**
      * Helper - creates new channel
      */
-    static async createChannel(user: User, data: any) : Promise<Channel> {
+    static async createChannel(user: User, data: any) : Promise<CreateChannel_Response> {
         const validated = await validator.validate({
             schema: this.channelSchema,
             data
@@ -43,21 +43,21 @@ export default class ChannelsService {
         })
 
         // Automatically add creator as member 
-        await this.createMember(channel, user!.id, true)
+        const member = await this.createMember(channel, user!.id, true)
 
-        return channel
+        return { channel, member }
     }
 
     /**
      * Helper - creates new member
      */
-    static async createMember(channel: Channel, user_id: number, is_owned: boolean) : Promise<void> {
-        await channel.related('member').create({
+    static async createMember(channel: Channel, user_id: number, is_owned: boolean) : Promise<Member> {
+        return await channel.related('members').create({
             userId: user_id,
             channelId: channel.id,
             isOwner: is_owned,
             joinedAt: DateTime.now(),
-            kick_votes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
+            kickVotes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
         })
     }
 
@@ -68,7 +68,7 @@ export default class ChannelsService {
      * Return all channels the user owns or joined
      */
     static async getChannelsByUserId(userId: number) : Promise<Channel[]> {
-        return Channel.query().whereHas('member', (memberQuery) => {
+        return Channel.query().whereHas('members', (memberQuery) => {
             memberQuery.where('user_id', userId)
         })
     }
@@ -82,8 +82,8 @@ export default class ChannelsService {
 
         // Create channel if not exists
         if (!channel) {
-            channel = await this.createChannel(user, { name: channelName })
-            return { channel, created: true, joined: true }
+            const results : CreateChannel_Response = await this.createChannel(user, { name: channelName })
+            return { channel: results.channel, created: true, joined: true, member: results.member }
         }
 
         // Check if already member
@@ -104,9 +104,9 @@ export default class ChannelsService {
         }
 
         // Add membership
-        await this.createMember(channel, user.id, false)
+        const member = await this.createMember(channel, user.id, false)
 
-        return { channel, created: false, joined: true }
+        return { channel, created: false, joined: true, member }
     }
 
     /**
@@ -115,7 +115,7 @@ export default class ChannelsService {
     static async getMembersByChannelId(channel: Channel) : Promise<Member[]> {
 
         return await channel
-            .related('member')
+            .related('members')
             .query()
             .select(['id', 'user_id', 'channel_id', 'is_owner', 'joined_at', 'kick_votes'])
             .preload('user', (userQuery) => {
@@ -139,6 +139,9 @@ export default class ChannelsService {
      * Cancel (owner deletes, member leaves)
      */
     static async cancelChannel(channel: Channel, user_member: Member) : Promise<CancelChannel_Response> {
+
+        if (!user_member) throw new MembershipRequiredException("cancel the channel")
+
         if (user_member.isOwner) {
             await channel.delete()
 
@@ -159,14 +162,11 @@ export default class ChannelsService {
     /**
      * Quit — only owner can permanently delete
      */
-    static async quitChannel(channel: Channel, member: Member) : Promise<boolean> {
+    static async quitChannel(channel: Channel, member: Member) : Promise<void> {
         
-        if (member.isOwner) throw new OwnershipRequiredException('delete channel')
-        
+        if (!member.isOwner) throw new OwnershipRequiredException('delete channel')
 
         await channel.delete()
-
-        return true
     }
     
     /**
@@ -199,6 +199,10 @@ export default class ChannelsService {
      */
     static async castKickVote(acting_member: Member, target_member: Member) : Promise<CastKickVote_Response> {
 
+        if (acting_member.id == target_member.id) throw new ProhibitedKickVoteException("yourself")
+
+        if (target_member.isOwner) throw new ProhibitedKickVoteException("owner of the channel")
+
         if (!acting_member) throw new MembershipRequiredException('kick members')
         
         // If the kicker is owner, stop immediately
@@ -213,28 +217,22 @@ export default class ChannelsService {
         // Check for duplicate vote
         const duplicate_vote = await KickVote
         .query()
-        .where('voter_member_id', acting_member.id)
-        .where('voted_member_id', target_member.id)
+        .where('acting_member_id', acting_member.id)
+        .where('target_member_id', target_member.id)
         .first()
 
-        if (duplicate_vote) {
-            return {
-                kicked: false,
-                votes: null,
-                reason: "Already voted"
-            }
-        }
-
+        if (duplicate_vote) throw new ProhibitedKickVoteException("the same member more than once")
+        
         await KickVote.create({
-        targetMemberId: target_member.id,
-        actingMemberId: acting_member.id,
-        kickedByOwner: acting_member.isOwner,
-        createdAt: DateTime.now(),
+            targetMemberId: target_member.id,
+            actingMemberId: acting_member.id,
+            kickedByOwner: acting_member.isOwner,
+            createdAt: DateTime.now(),
         })
 
         const votes_count_obj = await KickVote
             .query()
-            .where('voted_member_id', target_member.id)
+            .where('target_member_id', target_member.id)
             .count('* as total')
 
         const votes_count = Number(votes_count_obj[0].$extras.total) // extras is where the aggregate columns are saved to
@@ -248,6 +246,9 @@ export default class ChannelsService {
                 reason: acting_member.isOwner ? "owner kick" : "enough votes"
             }
         }
+
+        target_member.kickVotes = votes_count
+        await target_member.save()
 
         return {
             kicked: false,
@@ -267,7 +268,7 @@ export default class ChannelsService {
         if (!channel) throw new ChannelNotFoundException()
 
         const isMember = await channel
-            .related("member")
+            .related("members")
             .query()
             .where("user_id", userId)
             .first()

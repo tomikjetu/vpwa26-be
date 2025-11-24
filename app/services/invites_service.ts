@@ -108,7 +108,7 @@ export default class InvitesService {
             userId,
             isOwner: false,
             joinedAt: DateTime.now(),
-            kick_votes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
+            kickVotes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
         })
 
         // Remove invite
