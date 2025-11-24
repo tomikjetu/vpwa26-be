@@ -1,5 +1,6 @@
 import { MemberNotFoundException } from '#exceptions/exceptions'
 import Member from '#models/member'
+import User from '#models/user'
 import { Socket } from 'socket.io'
 
 export default class MemberResolver {
@@ -26,5 +27,36 @@ export default class MemberResolver {
 
     // Return
     return member
+  }
+
+  static async addExtras(memberId: number) {
+    // Load the member + received kick votes
+    const member = await Member.query()
+      .where('id', memberId)
+      .preload('receivedKickVotes')   // same as before
+      .firstOrFail()
+
+    const json = member.toJSON()
+
+    // Load the linked user
+    const user = await User.query()
+      .where('id', json.userId)
+      .select(['id', 'status', 'nick'])
+      .firstOrFail()
+
+    // Extract acting member IDs from kick votes
+    const kickVotes: number[] = (json.receivedKickVotes || []).map(
+      (kv: any) => kv.actingMemberId
+    )
+
+    // Build the final payload (same format as addMembers)
+    const result = {
+      ...json,
+      status: user.status,
+      nickname: user.nick,
+      receivedKickVotes: kickVotes,
+    }
+
+    return result
   }
 }

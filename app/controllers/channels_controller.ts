@@ -78,9 +78,11 @@ export default class ChannelsController {
 
       await this.joinRooms(socket, result.channel.id)
 
+      const member_with_extras = await MemberResolver.addExtras(result.member.id)
+
       this.broadcastToChannel(io, result.channel.id, "member:joined", {
         channelId: result.channel.id,
-        member: result.member
+        member: member_with_extras
       })
 
       const channel_with_members = await ChannelResolver.addMembers(result.channel.id)
