@@ -5,7 +5,7 @@ import Member from '#models/member'
 import KickVote from '#models/kick_vote'
 import { DateTime } from 'luxon'
 import { DuplicateInviteException, InviteRequiredException, MemberInvitedAgainException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
-import { CreateInvite_Response } from 'types/service_return_types.js'
+import { AcceptInvite_Response, CreateInvite_Response } from 'types/service_return_types.js'
 import { KICK_VOTE_CONSTANTS } from '#constants/constants'
 
 /**
@@ -34,8 +34,7 @@ export default class InvitesService {
 
         // Check whether or not the member has been kicked
         const kick_votes = await KickVote.query()
-            .where('voted_member_id', invited_user.id)
-            .where('channel_id', channel.id)
+            .where('target_member_id', invited_user.id)
 
         // Compute derived values from that one array
         const total = kick_votes.length
@@ -65,22 +64,23 @@ export default class InvitesService {
         if (acting_member.isOwner) await Promise.all(kick_votes.map(vote => vote.delete()))
 
         // Create invitation
-        await invited_user.related('invite').create({
+        const invite = await Invite.create({
+            userId: invited_user.id,
             channelId: channel.id,
         })
 
         return {
-            invited: true,
-            user: invited_user,
-            channelId: channel.id,
+            invitedAt: invite.createdAt,
+            channelName: channel.name,
+            inviteId: invite.id
         }
     }
 
     /**
      * Accept an invite to a channel
      */
-    static async acceptInvite(channelId: number, userId: number) : Promise<number> {
-
+    static async acceptInvite(channelId: number, userId: number) : Promise<AcceptInvite_Response> {
+        console.log("ACCEPT")
         // Check invite existence
         const invite = await Invite.query()
             .where('channel_id', channelId)
@@ -103,13 +103,41 @@ export default class InvitesService {
         }
 
         // Create membership
-        await Member.create({
+        const member = await Member.create({
             channelId,
             userId,
             isOwner: false,
             joinedAt: DateTime.now(),
             kickVotes: KICK_VOTE_CONSTANTS.KICK_VOTES_START,
         })
+
+        // Remove invite
+        await invite.delete()
+
+        return { channelId, member }
+    }
+
+    static async declineInvite(channelId: number, userId: number) : Promise<number> {
+       console.log("DECLINE")
+        // Check invite existence
+        const invite = await Invite.query()
+            .where('channel_id', channelId)
+            .where('user_id', userId)
+            .first()
+
+        if (!invite) throw new InviteRequiredException("decline an invite to a channel")
+        
+        // Ensure user isn't already in channel
+        const existingMember = await Member.query()
+            .where({ channelId, userId })
+            .first()
+
+        if (existingMember) {
+            // Clean up stale invite
+            await invite.delete()
+
+            throw new MembershipProhibitedException("decline an invite to a channel")
+        }
 
         // Remove invite
         await invite.delete()

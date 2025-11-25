@@ -137,12 +137,16 @@ app.ready(() => {
       invitesController.list(socket)
     )
 
-    socket.on('invite:create', (data: { channelId: number; userId: number }) =>
+    socket.on('invite:create', (data: { channelId: number; nickname: string }) =>
       invitesController.create(socket, io!, data)
     )
 
     socket.on('invite:accept', (data: { channelId: number }) =>
       invitesController.accept(socket, io!, data)
+    )
+
+    socket.on('invite:decline', (data: { channelId: number }) =>
+      invitesController.decline(socket, data)
     )
 
     // ────────────────────────────────────────────────────────────────

@@ -51,10 +51,11 @@ export default class MessagesController {
                 data.content,
                 data.files || []
             )
-
+            console.log("Message sent")
             this.broadcastToChannel(io, channel.id, "message:new", {
                 channelId: channel.id,
                 message: result,
+                memberId: member?.id,
             })
 
         } catch (err: any) {

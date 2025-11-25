@@ -54,5 +54,5 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare member: HasMany<typeof Member>
   
   @hasMany(() => Invite)
-  declare invite: HasMany<typeof Invite>
+  declare invites: HasMany<typeof Invite>
 }

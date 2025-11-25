@@ -1,7 +1,7 @@
 import Channel from "#models/channel"
 import Stream from "stream"
-import User from '#models/user'
 import Member from "#models/member"
+import { DateTime } from "luxon"
 
 export interface CreateChannel_Response {
     channel: Channel,
@@ -35,7 +35,12 @@ export interface GetFile_Response {
 }
 
 export interface CreateInvite_Response {
-    invited: boolean,
-    user: User,
-    channelId: number,
+    invitedAt: DateTime,
+    channelName: string,
+    inviteId: number
+}
+
+export interface AcceptInvite_Response {
+    channelId: number, 
+    member: Member
 }

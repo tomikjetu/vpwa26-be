@@ -7,6 +7,8 @@ import KickVote from './kick_vote.js'
 import type { NotifStatus } from 'types/string_literals.js'
 
 export default class Member extends BaseModel {
+  public static table = 'members'
+
   @column({ isPrimary: true })
   declare id: number
 
