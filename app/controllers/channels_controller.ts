@@ -116,9 +116,12 @@ export default class ChannelsController {
 
       const members = await ChannelsService.getMembersByChannelId(channel)
 
-      socket.emit("channel:listMembers", {
+      const enriched_members = []
+      for (const member of members) enriched_members.push(await MemberResolver.enrich(member.id))
+
+      socket.emit("channel:list-members", {
         channelId: channel.id,
-        members
+        members: enriched_members
       })
 
     } catch (err: any) {
@@ -155,18 +158,18 @@ export default class ChannelsController {
       const member = await MemberResolver.curr(socket, data.channelId)
 
       const result = await ChannelsService.cancelChannel(channel, member!)
-      
-      this.broadcastToChannel(io, data.channelId, result.deleted ? "channel:deleted" : "member:left",
-        {
-        channelId: data.channelId,
-        memberId: member!.id
-      })
 
       if(result.deleted) {
         this.deleteRooms(socket, data.channelId)
       } else {
         socket.emit("channel:left", { channelId: data.channelId })
       }
+
+      this.broadcastToChannel(io, data.channelId, result.deleted ? "channel:deleted" : "member:left",
+        {
+        channelId: data.channelId,
+        memberId: member!.id
+      })
 
     } catch (err: any) {
       socket.emit("error", { error: err.message })

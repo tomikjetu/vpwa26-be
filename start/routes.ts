@@ -6,8 +6,8 @@ import { middleware } from '#start/kernel'
 // ────────────────────────────────────────────────────────────────
 
 router.group(() => {
-  router.post('/user/login', '#controllers/users_controller.login')
-  router.post('/user/register', '#controllers/users_controller.register')
+  router.post('/user/login', '#controllers/auth_controller.login')
+  router.post('/user/register', '#controllers/auth_controller.register')
 }).middleware([middleware.guest()])
 
 
@@ -18,7 +18,7 @@ router.group(() => {
 router.group(() => {
 
   // Core user session lifecycle
-  router.post('/user/logout', '#controllers/users_status_controller.logout')
+  router.post('/user/logout', '#controllers/auth_controller.logout')
 
   // Fetch files belonging to messages/channels
   router.get('/channels/:channel_id/files/:file_id', '#controllers/channels_controller.getFile')

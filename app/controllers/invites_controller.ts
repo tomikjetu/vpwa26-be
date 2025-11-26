@@ -65,6 +65,7 @@ export default class InvitesController {
 
             socket.emit("invite:sent", {
                 ...result,
+                nickname: data.nickname
             })
 
         } catch (err: any) {
@@ -81,7 +82,7 @@ export default class InvitesController {
 
             const result = await InvitesService.acceptInvite(data.channelId, user.id)
 
-            const channel = await ChannelResolver.byId(result.channelId)
+            await ChannelResolver.byId(result.channelId)
             // join rooms AFTER membership is created
             socket.join(`channel:${result.channelId}`)
 
@@ -92,8 +93,10 @@ export default class InvitesController {
                 member: enrichedMember,
             })
 
+            const enrichedChannel = await ChannelResolver.enrich(data.channelId)
+
             socket.emit("channel:invite:accepted", {
-                channel,
+                channel: enrichedChannel,
                 userId: user.id
             })
 

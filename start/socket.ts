@@ -106,7 +106,7 @@ app.ready(() => {
       channelsController.join(socket, io!, data)
     )
 
-    socket.on('channel:listMembers', (data: { channelId: number }) =>
+    socket.on('channel:list-members', (data: { channelId: number }) =>
       channelsController.listMembers(socket, data)
     )
 
