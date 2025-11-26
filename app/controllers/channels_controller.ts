@@ -4,15 +4,18 @@ import ChannelsService from "#services/channels_service"
 import ChannelResolver from "#services/resolvers/channel_resolver"
 import MemberResolver from "#services/resolvers/member_resolver"
 import UserResolver from "#services/resolvers/user_resolver"
+import { NotifStatus } from "types/string_literals.js"
 
 export default class ChannelsController {
 
   /** Join socket to socket.io rooms */
   private async joinRooms(socket: Socket, channelId: number) : Promise<void> {
+    console.log("adding socket to room")
     socket.join(`channel:${channelId}`)
   }
 
   private async deleteRooms(socket: Socket, channelId: number) : Promise<void> {
+    console.log("removing socket from room")
     socket.leave(`channel:${channelId}`)
   }
 
@@ -21,17 +24,24 @@ export default class ChannelsController {
     io.to(`channel:${channelId}`).emit(event, payload)
   }
 
+
   // ────────────────────────────────────────────────────────────────
   // GET JOINED CHANNELS
   // ────────────────────────────────────────────────────────────────
   public async listChannels(socket: Socket) : Promise<void> {
     try {
       const user = await UserResolver.curr(socket)
-
       const channels = await ChannelsService.getChannelsByUserId(user.id)
       
       const channels_with_members = []
-      for (const channel of channels) channels_with_members.push(await ChannelResolver.addMembers(channel.id))
+      for (const channel of channels) channels_with_members.push(await ChannelResolver.enrich(channel.id))
+
+      for (const channel of channels_with_members) {
+        const member = await MemberResolver.curr(socket, channel.id);
+        channel.notifStatus = member!.notif_status;
+      }
+
+      console.log(channels_with_members[0])
 
       socket.emit("channel:list", {
         channels: channels_with_members
@@ -52,7 +62,7 @@ export default class ChannelsController {
       const result = await ChannelsService.createChannel(user, data)
       const channel = result.channel
 
-      const channel_with_members = await ChannelResolver.addMembers(channel.id)
+      const channel_with_members = await ChannelResolver.enrich(channel.id)
 
       console.log(JSON.stringify(channel_with_members))
 
@@ -78,14 +88,14 @@ export default class ChannelsController {
 
       await this.joinRooms(socket, result.channel.id)
 
-      const member_with_extras = await MemberResolver.addExtras(result.member.id)
+      const member_with_extras = await MemberResolver.enrich(result.member.id)
 
       this.broadcastToChannel(io, result.channel.id, "member:joined", {
         channelId: result.channel.id,
         member: member_with_extras
       })
 
-      const channel_with_members = await ChannelResolver.addMembers(result.channel.id)
+      const channel_with_members = await ChannelResolver.enrich(result.channel.id)
 
       socket.emit("channel:joined", {
         userId: user.id,
@@ -142,7 +152,7 @@ export default class ChannelsController {
   public async cancel(socket: Socket, io: IOServer, data: { channelId: number }) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
-      const member = await MemberResolver.byUser(socket, data.channelId)
+      const member = await MemberResolver.curr(socket, data.channelId)
 
       const result = await ChannelsService.cancelChannel(channel, member!)
       
@@ -167,7 +177,7 @@ export default class ChannelsController {
   public async quit(socket: Socket, io: IOServer, data: { channelId: number }) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
-      const member = await MemberResolver.byUser(socket, data.channelId)
+      const member = await MemberResolver.curr(socket, data.channelId)
 
       await ChannelsService.quitChannel(channel, member!)
 
@@ -188,7 +198,7 @@ export default class ChannelsController {
   public async kick(socket: Socket, io: IOServer, data: { channelId: number; targetMemberId: number }) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
-      const kicker = await MemberResolver.byUser(socket, data.channelId)
+      const kicker = await MemberResolver.curr(socket, data.channelId)
       const target = await MemberResolver.byId(data.targetMemberId)
 
       const targetUserId = target.userId
@@ -220,21 +230,25 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // UPDATE NOTIFICATION STATUS
   // ────────────────────────────────────────────────────────────────
-  public async updateNotif(socket: Socket, io: IOServer, data: { channelId: number; status: string }) : Promise<void> {
+  public async updateNotif(socket: Socket, data: { channelId: number; status: NotifStatus }) : Promise<void> {
     try {
-      const member = await MemberResolver.byUser(socket, data.channelId)
-      const notif_status = await ChannelsService.updateNotifStatus(member!, data.status as any)
+      console.log(data.status)
+      const member = await MemberResolver.curr(socket, data.channelId)
+      const notif_status = await ChannelsService.updateNotifStatus(member!, data.status)
 
-      this.broadcastToChannel(io, data.channelId, "member:notifstatus:updated", {
-        type: "notif_updated",
+      if (data.status == 'mentions') this.deleteRooms(socket, data.channelId)
+      else if (data.status == 'all') this.joinRooms(socket, data.channelId)
+
+      console.log("Notif status update")
+      console.log(data.status)
+
+      socket.emit("member:notif-status:updated", {
         channelId: data.channelId,
-        status: notif_status,
-        memberId: member!.id
+        notifStatus: notif_status,
       })
 
     } catch (err: any) {
       socket.emit("error", { error: err.message })
     }
   }
-
 }

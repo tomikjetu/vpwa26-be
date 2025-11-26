@@ -5,7 +5,6 @@ import ChannelResolver from "#services/resolvers/channel_resolver"
 import MemberResolver from "#services/resolvers/member_resolver"
 import UserResolver from "#services/resolvers/user_resolver"
 import InviteResolver from "#services/resolvers/invite_resolver"
-import Invite from '#models/invite'
 
 export default class InvitesController {
 
@@ -48,7 +47,7 @@ export default class InvitesController {
         try {
             const channel = await ChannelResolver.byId(data.channelId)
 
-            const actingMember = await MemberResolver.byUser(socket, data.channelId)
+            const actingMember = await MemberResolver.curr(socket, data.channelId)
             const invitedUser = await UserResolver.byNick(data.nickname)
 
             const result = await new InvitesService().createInvite(channel, actingMember!, invitedUser)
@@ -86,9 +85,11 @@ export default class InvitesController {
             // join rooms AFTER membership is created
             socket.join(`channel:${result.channelId}`)
 
+            const enrichedMember = await MemberResolver.enrich(result.member.id)
+
             this.broadcastToChannel(io, result.channelId, "member:joined", {
                 channelId: result.channelId,
-                member: result.member,
+                member: enrichedMember,
             })
 
             socket.emit("channel:invite:accepted", {

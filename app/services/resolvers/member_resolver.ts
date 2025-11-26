@@ -17,7 +17,7 @@ export default class MemberResolver {
     return member
   }
 
-  static async byUser(socket: Socket, channel_id: number) {
+  static async curr(socket: Socket, channel_id: number) {
 
     // Get user
     const user = (socket as any).user
@@ -29,7 +29,7 @@ export default class MemberResolver {
     return member
   }
 
-  static async addExtras(memberId: number) {
+  static async enrich(memberId: number) {
     // Load the member + received kick votes
     const member = await Member.query()
       .where('id', memberId)
@@ -59,4 +59,15 @@ export default class MemberResolver {
 
     return result
   }
+
+  static async mentionsOnly(channelId: number): Promise<Member[]> {
+        // Query to get all the users in the given channelId with their notification status
+        const members = await Member
+            .query()
+            .where('channel_id', channelId)
+            .preload('user')  // Assuming 'user' relationship exists on ChannelMember
+            .andWhere('notif_status', 'mentions'); // Filter users who have 'mentions' status
+        
+        return members;
+    }
 }

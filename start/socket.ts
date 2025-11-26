@@ -5,11 +5,11 @@ import { Server as IOServer } from 'socket.io'
 import ChannelsController from '#controllers/channels_controller'
 import InvitesController from '#controllers/invites_controller'
 import MessagesController from '#controllers/messages_controller'
-import UsersSocketController from "#controllers/users_socket_controller"
+import UsersSocketController from "#controllers/users_controller"
 
 import Session from '#models/session'
 import { DateTime } from 'luxon'
-import { UserStatus } from 'types/string_literals.js'
+import { NotifStatus, UserStatus } from 'types/string_literals.js'
 
 let io: IOServer | undefined
 
@@ -126,8 +126,8 @@ app.ready(() => {
       channelsController.kick(socket, io!, data)
     )
 
-    socket.on('channel:updateNotif', (data: { channelId: number; status: string }) =>
-      channelsController.updateNotif(socket, io!, data)
+    socket.on('member:notif-status:update', (data: { channelId: number; status: NotifStatus }) =>
+      channelsController.updateNotif(socket, data)
     )
 
     // ────────────────────────────────────────────────────────────────

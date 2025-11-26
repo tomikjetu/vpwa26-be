@@ -16,7 +16,7 @@ export default class ChannelResolver {
     return channel
   }
 
-  static async addMembers(channelId: number) {
+  static async enrich(channelId: number) {
 
     const channel = await Channel.query()
       .where('id', channelId)
@@ -27,7 +27,7 @@ export default class ChannelResolver {
 
     const json = channel.toJSON()
 
-    const membersMap: Record<number, any> = {}
+    const enrichedMembers: Record<number, any> = {}
 
     for (const member of json.members) {
       const user = await User.query()
@@ -39,7 +39,7 @@ export default class ChannelResolver {
         (kv: any) => kv.actingMemberId
       )
 
-      membersMap[member.id] = {
+      enrichedMembers[member.id] = {
         ...member,
         status: user.status,
         nickname: user.nick,
@@ -47,7 +47,7 @@ export default class ChannelResolver {
       }
     }
 
-    json.members = membersMap
+    json.members = enrichedMembers
     return json
   }
 }

@@ -52,11 +52,14 @@ export default class MessagesService {
         // Check exceptions
         if (!member) throw new MembershipRequiredException("send messages in a channel")
         
-        if ((!content || content.trim().length === 0) && files.length === 0) throw new IncorrectMessageFormatException("message must contain either text or at least one file")
+        if ((!content || content.trim().length === 0) && files.length === 0) 
+            throw new IncorrectMessageFormatException("message must contain either text or at least one file")
         
-        if (content && content.length > MESSAGE_CONSTANTS.MAX_LENGTH) throw new IncorrectMessageFormatException(`messsage must be less than ${MESSAGE_CONSTANTS.MAX_LENGTH} characters long`)
+        if (content && content.length > MESSAGE_CONSTANTS.MAX_LENGTH) 
+            throw new IncorrectMessageFormatException(`messsage must be less than ${MESSAGE_CONSTANTS.MAX_LENGTH} characters long`)
         
-        if (files.length > MESSAGE_CONSTANTS.MAX_FILE_COUNT) throw new IncorrectMessageFormatException(`messsage can contain at most ${MESSAGE_CONSTANTS.MAX_FILE_COUNT} files`)
+        if (files.length > MESSAGE_CONSTANTS.MAX_FILE_COUNT) 
+            throw new IncorrectMessageFormatException(`messsage can contain at most ${MESSAGE_CONSTANTS.MAX_FILE_COUNT} files`)
         
 
         // Create message
@@ -89,21 +92,24 @@ export default class MessagesService {
             savedFiles.push(saved)
         }
 
-        return {
-            id: message.id,
-            content: message.content,
-            createdAt: message.createdAt,
-            channelId: channel.id,
-            files: savedFiles.map(f => ({
-                name: f.name,
-                mime: f.mime_type,
-                size: f.size,
-                id: f.id
-            })),
-            user: {
-                id: user.id,
-                nick: user.nick
-            }
+        return { 
+            emit: {
+                id: message.id,
+                content: message.content,
+                createdAt: message.createdAt,
+                channelId: channel.id,
+                files: savedFiles.map(f => ({
+                    name: f.name,
+                    mime: f.mime_type,
+                    size: f.size,
+                    id: f.id
+                })),
+                user: {
+                    id: user.id,
+                    nick: user.nick
+                } 
+            },
+            message: message
         }
     }
 }

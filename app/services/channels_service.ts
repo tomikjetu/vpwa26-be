@@ -10,7 +10,7 @@ import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants'
 import { ChannelNotFoundException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException, ProhibitedKickVoteException } from '#exceptions/exceptions'
 import Drive from '@adonisjs/drive/services/main'
 import { validator } from '@adonisjs/validator'
-import { NotifStatus } from 'types/string_literals.js'
+import type { NotifStatus } from 'types/string_literals.js'
 import { CancelChannel_Response, CastKickVote_Response, CreateChannel_Response, GetFile_Response, JoinChannel_Response } from 'types/service_return_types.js'
 
 /**
@@ -187,9 +187,14 @@ export default class ChannelsService {
     static async updateNotifStatus(user_member: Member, status: NotifStatus) : Promise<NotifStatus> {
        
         if (!user_member) throw new MembershipRequiredException('change notification status')
-
-        user_member.notif_status = status
-        await user_member.save()
+            
+        console.log(user_member)
+        console.log(status)
+        
+        if(user_member.notif_status != status) {
+            user_member.notif_status = status
+            await user_member.save()
+        }
 
         return user_member.notif_status
     }
