@@ -7,6 +7,13 @@ import UserResolver from "#services/resolvers/user_resolver"
 import { extractMentions } from "#services/regex_helper"
 
 export default class MessagesController {
+    /**
+     * Map to track typing users per channel
+     * Structure: channelId -> Map(memberId -> { memberId, message })
+     * Note: typing entries are only cleared when the client sends an empty message.
+     * We send `memberId` (not nickname) in the broadcast so clients can resolve display names locally.
+     */
+    private typingMap: Map<number, Map<number, { memberId: number; message: string }>> = new Map()
 
     /** Emit message to channel */
     private broadcastToChannel(io: IOServer, channelId: number, event: string, payload: any): void {
@@ -37,8 +44,67 @@ export default class MessagesController {
     }
 
   // ────────────────────────────────────────────────────────────────
+  // TYPING INDICATOR
+  // ────────────────────────────────────────────────────────────────
+  public async typing(
+    socket: Socket,
+    io: IOServer,
+    data: { channelId: number; message: string }
+  ): Promise<void> {
+        try {
+            const member = await MemberResolver.curr(socket, data.channelId)
+            
+            if (!member) {
+                socket.emit("error", { error: "You are not a member of this channel" })
+                return
+            }
+
+            // Initialize channel map if not exists
+            if (!this.typingMap.has(data.channelId)) {
+                this.typingMap.set(data.channelId, new Map())
+            }
+
+            const channelTyping = this.typingMap.get(data.channelId)!
+
+            // If message is empty, member stopped typing (clients must emit empty message to clear)
+            if (!data.message || data.message.trim() === '') {
+                channelTyping.delete(member.id)
+
+                // Broadcast updated typing list (send memberId instead of nickname)
+                this.broadcastToChannel(io, data.channelId, "msg:typing", {
+                    channelId: data.channelId,
+                    typing: Array.from(channelTyping.values()).map(t => ({
+                        memberId: t.memberId,
+                        message: t.message
+                    }))
+                })
+                return
+            }
+
+            // Update typing state (no auto-clear on server)
+            channelTyping.set(member.id, {
+                memberId: member.id,
+                message: data.message
+            })
+
+            // Broadcast typing status to all users in the channel (send memberId instead of nickname)
+            this.broadcastToChannel(io, data.channelId, "msg:typing", {
+                channelId: data.channelId,
+                typing: Array.from(channelTyping.values()).map(t => ({
+                    memberId: t.memberId,
+                    message: t.message
+                }))
+            })
+
+        } catch (err: any) {
+            socket.emit("error", { error: err.message })
+        }
+    }
+
+  // ────────────────────────────────────────────────────────────────
   // SEND MESSAGE (Optionally with files)
   // ────────────────────────────────────────────────────────────────
+
   public async send(
     socket: Socket,
     io: IOServer,

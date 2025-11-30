@@ -160,6 +160,10 @@ app.ready(() => {
       messagesController.send(socket, io!, data)
     )
 
+    socket.on('msg:typing', (data: { channelId: number; message: string }) =>
+      messagesController.typing(socket, io!, data)
+    )
+
     // ────────────────────────────────────────────────────────────────
     // USER EVENTS
     // ────────────────────────────────────────────────────────────────
