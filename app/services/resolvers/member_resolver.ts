@@ -29,6 +29,16 @@ export default class MemberResolver {
     return member
   }
 
+  static async byUserAndChannel(userId: number, channelId: number) {
+    // Try to find the member by user ID and channel ID
+    const member = await Member.query()
+      .where('user_id', userId)
+      .where('channel_id', channelId)
+      .first()
+
+    return member
+  }
+
   static async enrich(memberId: number) {
     // Load the member + received kick votes
     const member = await Member.query()

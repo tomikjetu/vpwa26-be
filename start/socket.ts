@@ -73,6 +73,8 @@ app.ready(() => {
     console.log('New WS connection:', socket.id)
 
     const user = (socket as any).user
+    user.status = 'online'
+    await user.save()
 
     if (user) {
       // Join user personal notification room
@@ -174,8 +176,17 @@ app.ready(() => {
     // ────────────────────────────────────────────────────────────────
     // DISCONNECT
     // ────────────────────────────────────────────────────────────────
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
       console.log('disconnect', socket.id, reason)
+      
+      // When user disconnects, mark them as offline
+      if (user) {
+        user.status = 'offline'
+        await user.save()
+        
+        // Broadcast offline status to other users
+        await usersController.broadcastStatusUpdate(io!, user.id, 'offline')
+      }
     })
   })
 
