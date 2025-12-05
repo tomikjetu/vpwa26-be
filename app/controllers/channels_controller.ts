@@ -10,12 +10,10 @@ export default class ChannelsController {
 
   /** Join socket to socket.io rooms */
   private async joinRooms(socket: Socket, channelId: number) : Promise<void> {
-    console.log("adding socket to room")
     socket.join(`channel:${channelId}`)
   }
 
   private async deleteRooms(socket: Socket, channelId: number) : Promise<void> {
-    console.log("removing socket from room")
     socket.leave(`channel:${channelId}`)
   }
 
@@ -41,8 +39,6 @@ export default class ChannelsController {
         channel.notifStatus = member!.notif_status;
       }
 
-      console.log(channels_with_members[0])
-
       socket.emit("channel:list", {
         channels: channels_with_members
       })
@@ -63,8 +59,6 @@ export default class ChannelsController {
       const channel = result.channel
 
       const channel_with_members = await ChannelResolver.enrich(channel.id)
-
-      console.log(JSON.stringify(channel_with_members))
 
       await this.joinRooms(socket, channel.id)
 
@@ -235,15 +229,11 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   public async updateNotif(socket: Socket, data: { channelId: number; status: NotifStatus }) : Promise<void> {
     try {
-      console.log(data.status)
       const member = await MemberResolver.curr(socket, data.channelId)
       const notif_status = await ChannelsService.updateNotifStatus(member!, data.status)
 
       if (data.status == 'mentions') this.deleteRooms(socket, data.channelId)
       else if (data.status == 'all') this.joinRooms(socket, data.channelId)
-
-      console.log("Notif status update")
-      console.log(data.status)
 
       socket.emit("member:notif-status:updated", {
         channelId: data.channelId,

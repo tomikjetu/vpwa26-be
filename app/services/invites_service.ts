@@ -80,7 +80,6 @@ export default class InvitesService {
      * Accept an invite to a channel
      */
     static async acceptInvite(channelId: number, userId: number) : Promise<AcceptInvite_Response> {
-        console.log("ACCEPT")
         // Check invite existence
         const invite = await Invite.query()
             .where('channel_id', channelId)
@@ -118,7 +117,6 @@ export default class InvitesService {
     }
 
     static async declineInvite(channelId: number, userId: number) : Promise<number> {
-       console.log("DECLINE")
         // Check invite existence
         const invite = await Invite.query()
             .where('channel_id', channelId)

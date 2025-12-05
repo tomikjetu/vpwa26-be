@@ -42,14 +42,12 @@ export default class UsersController {
 	}
 
 	public async register(ctx: HttpContext) {
-		console.log("Zero")
 		const { request, response } = ctx
 		const payload: Record<string, any> = request.only(['first_name', 'last_name', 'nick', 'email', 'password'])
 
 		const required = ['first_name', 'last_name', 'nick', 'email', 'password']
 		const missing = required.filter(k => !payload[k] || String(payload[k]).trim() === '')
 		if (missing.length) return response.badRequest({ error: 'Missing required fields', fields: missing })
-		console.log("First")
 		payload.first_name = String(payload.first_name).trim()
 		payload.last_name = String(payload.last_name).trim()
 		payload.nick = String(payload.nick).trim()
@@ -57,7 +55,6 @@ export default class UsersController {
 
 		const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 		if (!emailRe.test(payload.email)) return response.badRequest({ error: 'Invalid email address' })
-		console.log("Second")
 		if (payload.password.length < 8) return response.badRequest({ error: 'Password must be at least 8 characters' })
 		if (!/[0-9]/.test(payload.password) || !/[A-Za-z]/.test(payload.password)) {
 			return response.badRequest({ error: 'Password must include letters and numbers' })

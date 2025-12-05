@@ -188,8 +188,6 @@ export default class ChannelsService {
        
         if (!user_member) throw new MembershipRequiredException('change notification status')
             
-        console.log(user_member)
-        console.log(status)
         
         if(user_member.notif_status != status) {
             user_member.notif_status = status
