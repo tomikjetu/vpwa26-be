@@ -20,24 +20,6 @@ export default class MessagesController {
         io.to(`channel:${channelId}`).emit(event, payload)
     }
 
-    /** 
-     * Emit message to channel, but exclude offline users
-     * For messages, we don't want to send to offline users since they "disconnected"
-     */
-    private async broadcastMessageToChannel(io: IOServer, channelId: number, event: string, payload: any): Promise<void> {
-        // Get all members of the channel
-        const Member = (await import('#models/member')).default
-        const members = await Member.query()
-            .where('channel_id', channelId)
-            .preload('user')
-        
-        for (const member of members) {
-            if (member.user && member.user.status !== 'offline') {
-                io.to(`user:${member.userId}`).emit(event, payload)
-            }
-        }
-    }
-
     private broadcastToUser(io: IOServer, userId: number, event: string, payload: any): void {
         io.to(`user:${userId}`).emit(event, payload)
     }
@@ -130,13 +112,6 @@ export default class MessagesController {
   ): Promise<void> {
         try {
             const user = await UserResolver.curr(socket)
-            
-            // Check if user is offline - they cannot send messages
-            if (user.status === 'offline') {
-                socket.emit("error", { error: "You cannot send messages while offline. Change your status to send messages." })
-                return
-            }
-            
             const channel = await ChannelResolver.byId(data.channelId)
             const member = await MemberResolver.curr(socket, data.channelId)
 
@@ -156,19 +131,17 @@ export default class MessagesController {
 
             const mentionedUsers = mentionedMembers.map(member => member.user);
 
-            for(const user of mentionedUsers) {
-                // Only notify if user is not offline
-                if (user.status !== 'offline') {
-                    this.broadcastToUser(io, user.id, "message:new", {
-                        channelId: channel.id,
-                        message: result.emit,
-                        memberId: member?.id,
-                    })
-                }
+            // Notify mentioned users directly
+            for(const mentionedUser of mentionedUsers) {
+                this.broadcastToUser(io, mentionedUser.id, "message:new", {
+                    channelId: channel.id,
+                    message: result.emit,
+                    memberId: member?.id,
+                })
             }
 
-            // Broadcast to channel, excluding offline users
-            await this.broadcastMessageToChannel(io, channel.id, "message:new", {
+            // Broadcast to channel - socket.io handles delivery to connected users only
+            this.broadcastToChannel(io, channel.id, "message:new", {
                 channelId: channel.id,
                 message: result.emit,
                 memberId: member?.id,

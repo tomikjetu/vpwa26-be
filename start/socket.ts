@@ -73,12 +73,14 @@ app.ready(() => {
     console.log('New WS connection:', socket.id)
 
     const user = (socket as any).user
-    user.status = 'online'
-    await user.save()
-
+    
     if (user) {
       // Join user personal notification room
       socket.join(`user:${user.id}`)
+
+      // Mark user as connected in database
+      user.isConnected = true
+      await user.save()
 
       // Join all channels user is in
       const Member = (await import('#models/member')).default
@@ -87,10 +89,14 @@ app.ready(() => {
       members.forEach((member) => {
         socket.join(`channel:${member.channelId}`)
       })
-    }
 
-    // Send joined channels initially
-    channelsController.listChannels(socket)
+      // Broadcast connection state to all users who share a channel
+      await usersController.broadcastUserState(io!, user.id, user.status, true)
+
+      usersController.me(socket)      
+      channelsController.listChannels(socket)
+      invitesController.list(socket)
+    }
 
     // ────────────────────────────────────────────────────────────────
     // CHANNEL EVENTS
@@ -179,13 +185,13 @@ app.ready(() => {
     socket.on('disconnect', async (reason) => {
       console.log('disconnect', socket.id, reason)
       
-      // When user disconnects, mark them as offline
       if (user) {
-        user.status = 'offline'
+        // Mark user as disconnected in database
+        user.isConnected = false
         await user.save()
-        
-        // Broadcast offline status to other users
-        await usersController.broadcastStatusUpdate(io!, user.id, 'offline')
+
+        // Broadcast disconnection to all users who share a channel
+        await usersController.broadcastUserState(io!, user.id, user.status, false)
       }
     })
   })

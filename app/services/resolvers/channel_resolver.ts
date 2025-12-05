@@ -32,7 +32,7 @@ export default class ChannelResolver {
     for (const member of json.members) {
       const user = await User.query()
         .where('id', member.userId)
-        .select(['id', 'status', 'nick'])
+        .select(['id', 'status', 'is_connected', 'nick'])
         .firstOrFail()
 
       const kickVotes: number[] = (member.receivedKickVotes || []).map(
@@ -42,6 +42,7 @@ export default class ChannelResolver {
       enrichedMembers[member.id] = {
         ...member,
         status: user.status,
+        isConnected: user.isConnected,
         nickname: user.nick,
         receivedKickVotes: kickVotes,
       }

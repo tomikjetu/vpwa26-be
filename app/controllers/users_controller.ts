@@ -5,17 +5,24 @@ import Member from "#models/member"
 
 export default class UsersWsController {
 
-  // WebSocket method to update status (user manually changing their status)
+  // WebSocket method to update status (user manually changing their status preference)
+  // Only 'active' or 'dnd' are valid - offline is a socket disconnect state, not a status
   public async updateStatus(socket: Socket, io: IOServer, data: { status: UserStatus }) : Promise<void> {
     try {
       const user = await UserResolver.curr(socket)
+
+      // Validate status - only 'active' and 'dnd' are valid
+      if (data.status !== 'active' && data.status !== 'dnd') {
+        socket.emit("error", { error: "Invalid status. Only 'active' or 'dnd' are allowed." })
+        return
+      }
 
       // Update user status in database
       user.status = data.status
       await user.save()
 
       // Broadcast status update to all users who share a channel with this user
-      await this.broadcastStatusUpdate(io, user.id, data.status)
+      await this.broadcastUserState(io, user.id, data.status, user.isConnected)
 
       socket.emit("user:event", {
         type: "status_update_success",
@@ -28,9 +35,13 @@ export default class UsersWsController {
   }
 
   /**
-   * Broadcast status update to all users who share a channel with this user
+   * Broadcast user state (status + connection) to all users who share a channel
+   * This is called when:
+   * - User connects (isConnected = true)
+   * - User disconnects (isConnected = false)
+   * - User changes status (active/dnd)
    */
-  public async broadcastStatusUpdate(io: IOServer, userId: number, status: UserStatus): Promise<void> {
+  public async broadcastUserState(io: IOServer, userId: number, status: UserStatus, isConnected: boolean): Promise<void> {
     try {
       // Get all channels the user is in
       const members = await Member.query()
@@ -55,14 +66,15 @@ export default class UsersWsController {
         if (!notifiedUserIds.has(member.userId)) {
           notifiedUserIds.add(member.userId)
           io.to(`user:${member.userId}`).emit("user:event", {
-            type: "status_updated",
+            type: "user_state_changed",
             userId,
-            status
+            status,
+            isConnected
           })
         }
       }
     } catch (error) {
-      console.error('Error broadcasting status:', error)
+      console.error('Error broadcasting user state:', error)
     }
   }
 
@@ -81,7 +93,8 @@ export default class UsersWsController {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          status: user.status
+          status: user.status,
+          isConnected: user.isConnected
         }
       })
       

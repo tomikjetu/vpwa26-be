@@ -1,5 +1,4 @@
 export type NotifStatus = 'all' | 'mentions'
 
-export type UserStatus = 'online' | 'dnd' | 'offline'
-
-export type UserVisibleStatus = 'online' | 'dnd'
+// User-selectable status preference (not connection state)
+export type UserStatus = 'active' | 'dnd'

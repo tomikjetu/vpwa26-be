@@ -35,6 +35,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare status: UserStatus
 
   @column()
+  declare isConnected: boolean
+
+  @column()
   declare passwdHash: string
 
   @column.dateTime({ autoCreate: true })

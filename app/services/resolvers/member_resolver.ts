@@ -51,7 +51,7 @@ export default class MemberResolver {
     // Load the linked user
     const user = await User.query()
       .where('id', json.userId)
-      .select(['id', 'status', 'nick'])
+      .select(['id', 'status', 'is_connected', 'nick'])
       .firstOrFail()
 
     // Extract acting member IDs from kick votes
@@ -63,6 +63,7 @@ export default class MemberResolver {
     const result = {
       ...json,
       status: user.status,
+      isConnected: user.isConnected,
       nickname: user.nick,
       receivedKickVotes: kickVotes,
     }
