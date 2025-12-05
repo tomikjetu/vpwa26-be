@@ -4,7 +4,16 @@ import ChannelsService from "#services/channels_service"
 import ChannelResolver from "#services/resolvers/channel_resolver"
 import MemberResolver from "#services/resolvers/member_resolver"
 import UserResolver from "#services/resolvers/user_resolver"
-import { NotifStatus } from "types/string_literals.js"
+import type {
+  ChannelCreateDTO,
+  ChannelJoinDTO,
+  ChannelListMembersDTO,
+  ChannelListInvitesDTO,
+  ChannelCancelDTO,
+  ChannelQuitDTO,
+  MemberKickVoteDTO,
+  MemberNotifStatusUpdateDTO,
+} from "types/socket_contracts.js"
 
 export default class ChannelsController {
 
@@ -51,7 +60,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // CREATE CHANNEL
   // ────────────────────────────────────────────────────────────────
-  public async create(socket: Socket, data: { name: string; isPrivate?: boolean }) : Promise<void> {
+  public async create(socket: Socket, data: ChannelCreateDTO) : Promise<void> {
     try {
       const user = await UserResolver.curr(socket)
 
@@ -74,7 +83,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // JOIN CHANNEL
   // ────────────────────────────────────────────────────────────────
-  public async join(socket: Socket, io: IOServer, data: { name: string }) : Promise<void> {
+  public async join(socket: Socket, io: IOServer, data: ChannelJoinDTO) : Promise<void> {
     try {
       const user = await UserResolver.curr(socket)
 
@@ -104,7 +113,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // LIST MEMBERS
   // ────────────────────────────────────────────────────────────────
-  public async listMembers(socket: Socket, data: { channelId: number }) : Promise<void> {
+  public async listMembers(socket: Socket, data: ChannelListMembersDTO) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
 
@@ -126,7 +135,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // GET INVITED USERS
   // ────────────────────────────────────────────────────────────────
-  public async listInvites(socket: Socket, data: { channelId: number }) : Promise<void> {
+  public async listInvites(socket: Socket, data: ChannelListInvitesDTO) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
 
@@ -146,7 +155,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // CANCEL CHANNEL / LEAVE
   // ────────────────────────────────────────────────────────────────
-  public async cancel(socket: Socket, io: IOServer, data: { channelId: number }) : Promise<void> {
+  public async cancel(socket: Socket, io: IOServer, data: ChannelCancelDTO) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
       const member = await MemberResolver.curr(socket, data.channelId)
@@ -171,7 +180,7 @@ export default class ChannelsController {
   }
 
 
-  public async quit(socket: Socket, io: IOServer, data: { channelId: number }) : Promise<void> {
+  public async quit(socket: Socket, io: IOServer, data: ChannelQuitDTO) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
       const member = await MemberResolver.curr(socket, data.channelId)
@@ -192,7 +201,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // KICK MEMBER
   // ────────────────────────────────────────────────────────────────
-  public async kick(socket: Socket, io: IOServer, data: { channelId: number; targetMemberId: number }) : Promise<void> {
+  public async kick(socket: Socket, io: IOServer, data: MemberKickVoteDTO) : Promise<void> {
     try {
       const channel = await ChannelResolver.byId(data.channelId)
       const kicker = await MemberResolver.curr(socket, data.channelId)
@@ -227,7 +236,7 @@ export default class ChannelsController {
   // ────────────────────────────────────────────────────────────────
   // UPDATE NOTIFICATION STATUS
   // ────────────────────────────────────────────────────────────────
-  public async updateNotif(socket: Socket, data: { channelId: number; status: NotifStatus }) : Promise<void> {
+  public async updateNotif(socket: Socket, data: MemberNotifStatusUpdateDTO) : Promise<void> {
     try {
       const member = await MemberResolver.curr(socket, data.channelId)
       const notif_status = await ChannelsService.updateNotifStatus(member!, data.status)

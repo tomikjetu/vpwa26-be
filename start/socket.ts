@@ -9,7 +9,23 @@ import UsersSocketController from "#controllers/users_controller"
 
 import Session from '#models/session'
 import { DateTime } from 'luxon'
-import { NotifStatus, UserStatus } from 'types/string_literals.js'
+import type {
+  ChannelCreateDTO,
+  ChannelJoinDTO,
+  ChannelListMembersDTO,
+  ChannelListInvitesDTO,
+  ChannelCancelDTO,
+  ChannelQuitDTO,
+  MemberKickVoteDTO,
+  MemberNotifStatusUpdateDTO,
+  InviteCreateDTO,
+  InviteAcceptDTO,
+  InviteDeclineDTO,
+  MessageListDTO,
+  MessageSendDTO,
+  MessageTypingDTO,
+  UserStatusDTO,
+} from 'types/socket_contracts.js'
 
 let io: IOServer | undefined
 
@@ -106,35 +122,35 @@ app.ready(() => {
       channelsController.listChannels(socket)
     )
 
-    socket.on('channel:create', (data: { name: string; isPrivate?: boolean }) =>
+    socket.on('channel:create', (data: ChannelCreateDTO) =>
       channelsController.create(socket, data)
     )
 
-    socket.on('channel:join', (data: { name: string }) =>
+    socket.on('channel:join', (data: ChannelJoinDTO) =>
       channelsController.join(socket, io!, data)
     )
 
-    socket.on('channel:list-members', (data: { channelId: number }) =>
+    socket.on('channel:list-members', (data: ChannelListMembersDTO) =>
       channelsController.listMembers(socket, data)
     )
 
-    socket.on('channel:listInvites', (data: { channelId: number }) =>
+    socket.on('channel:listInvites', (data: ChannelListInvitesDTO) =>
       channelsController.listInvites(socket, data)
     )
 
-    socket.on('channel:cancel', (data: { channelId: number }) =>
+    socket.on('channel:cancel', (data: ChannelCancelDTO) =>
       channelsController.cancel(socket, io!, data)
     )
 
-    socket.on('channel:quit', (data: { channelId: number }) =>
+    socket.on('channel:quit', (data: ChannelQuitDTO) =>
       channelsController.quit(socket, io!, data)
     )
 
-    socket.on('member:kick-vote', (data: { channelId: number; targetMemberId: number }) =>
+    socket.on('member:kick-vote', (data: MemberKickVoteDTO) =>
       channelsController.kick(socket, io!, data)
     )
 
-    socket.on('member:notif-status:update', (data: { channelId: number; status: NotifStatus }) =>
+    socket.on('member:notif-status:update', (data: MemberNotifStatusUpdateDTO) =>
       channelsController.updateNotif(socket, data)
     )
 
@@ -145,37 +161,37 @@ app.ready(() => {
       invitesController.list(socket)
     )
 
-    socket.on('invite:create', (data: { channelId: number; nickname: string }) =>
+    socket.on('invite:create', (data: InviteCreateDTO) =>
       invitesController.create(socket, io!, data)
     )
 
-    socket.on('invite:accept', (data: { channelId: number }) =>
+    socket.on('invite:accept', (data: InviteAcceptDTO) =>
       invitesController.accept(socket, io!, data)
     )
 
-    socket.on('invite:decline', (data: { channelId: number }) =>
+    socket.on('invite:decline', (data: InviteDeclineDTO) =>
       invitesController.decline(socket, data)
     )
 
     // ────────────────────────────────────────────────────────────────
     // MESSAGE EVENTS (using prefix msg:*)
     // ────────────────────────────────────────────────────────────────
-    socket.on('msg:list', (data: { channelId: number, offset: number }) =>
+    socket.on('msg:list', (data: MessageListDTO) =>
       messagesController.list(socket, data)
     )
 
-    socket.on('msg:send', (data: { channelId: number; content?: string; files?: any[] }) =>
+    socket.on('msg:send', (data: MessageSendDTO) =>
       messagesController.send(socket, io!, data)
     )
 
-    socket.on('msg:typing', (data: { channelId: number; message: string }) =>
+    socket.on('msg:typing', (data: MessageTypingDTO) =>
       messagesController.typing(socket, io!, data)
     )
 
     // ────────────────────────────────────────────────────────────────
     // USER EVENTS
     // ────────────────────────────────────────────────────────────────
-    socket.on("user:status", (data: { status: UserStatus }) =>
+    socket.on("user:status", (data: UserStatusDTO) =>
       usersController.updateStatus(socket, io!, data)
     )
 
