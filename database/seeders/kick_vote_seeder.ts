@@ -22,16 +22,21 @@ export default class KickVoteSeeder extends BaseSeeder {
       .andWhere('channelId', generalChannel.id)
       .first()
 
-    if (!tomMember) {
-      console.error('Tom is not a member of the general channel. Run MemberSeeder first.')
+    const johnMember = await Member.query()
+      .where('userId', johnDoe.id)
+      .andWhere('channelId', generalChannel.id)
+      .first()
+
+    if (!tomMember || !johnMember) {
+      console.error('Tom or John are not members of the general channel. Run MemberSeeder first.')
       return
     }
 
     // Since this is a log of votes, we simply create new records
     await KickVote.createMany([
       {
-        memberId: tomMember.id, // The member being voted on (Tom)
-        voterUserId: johnDoe.id, // The user who cast the vote (John)
+        targetMemberId: tomMember.id, // The member being voted on (Tom)
+        actingMemberId: johnMember.id, // The user who cast the vote (John)
         kickedByOwner: true, // Assuming John is the owner and this was his final vote/action
         createdAt: DateTime.now().minus({ hours: 1 }),
       },

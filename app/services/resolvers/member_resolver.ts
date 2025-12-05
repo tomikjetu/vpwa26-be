@@ -1,0 +1,84 @@
+import { MemberNotFoundException } from '#exceptions/exceptions'
+import Member from '#models/member'
+import User from '#models/user'
+import { Socket } from 'socket.io'
+
+export default class MemberResolver {
+
+  static async byId(member_id: number) {
+
+    // Try to find the member
+    const member = await Member.find(member_id)
+
+    // If not found, return 404 response
+    if (!member) throw new MemberNotFoundException()
+
+    // Return
+    return member
+  }
+
+  static async curr(socket: Socket, channel_id: number) {
+
+    // Get user
+    const user = (socket as any).user
+    
+    // Try to find the member
+    const member = await Member.query().where({'user_id': user!.id, 'channel_id': channel_id}).first()
+
+    // Return
+    return member
+  }
+
+  static async byUserAndChannel(userId: number, channelId: number) {
+    // Try to find the member by user ID and channel ID
+    const member = await Member.query()
+      .where('user_id', userId)
+      .where('channel_id', channelId)
+      .first()
+
+    return member
+  }
+
+  static async enrich(memberId: number) {
+    // Load the member + received kick votes
+    const member = await Member.query()
+      .where('id', memberId)
+      .preload('receivedKickVotes')   // same as before
+      .firstOrFail()
+
+    const json = member.toJSON()
+
+    // Load the linked user
+    const user = await User.query()
+      .where('id', json.userId)
+      .select(['id', 'status', 'is_connected', 'nick'])
+      .firstOrFail()
+
+    // Extract acting member IDs from kick votes
+    const kickVotes: number[] = (json.receivedKickVotes || []).map(
+      (kv: any) => kv.actingMemberId
+    )
+
+    // Build the final payload (same format as addMembers)
+    const result = {
+      ...json,
+      status: user.status,
+      isConnected: user.isConnected,
+      nickname: user.nick,
+      receivedKickVotes: kickVotes,
+    }
+
+    return result
+  }
+
+  static async mentionsOnly(channelId: number): Promise<Member[]> {
+        // Query to get all the users in the given channelId with their notification status
+        const members = await Member
+            .query()
+            .where('channel_id', channelId)
+            .preload('user')  // Assuming 'user' relationship exists on ChannelMember
+            .andWhere('notif_status', 'mentions'); // Filter users who have 'mentions' status
+        
+        return members;
+    }
+}
