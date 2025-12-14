@@ -15,7 +15,7 @@ export default class DatabaseSeeder extends BaseSeeder {
     await new MemberSeeder(this.client).run()
     await new MessageSeeder(this.client).run()
     await new KickVoteSeeder(this.client).run()
-    await new FileSeeder(this.client).run()
+    //await new FileSeeder(this.client).run()
 
     console.log('Seeding complete!')
   }
