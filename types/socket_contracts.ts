@@ -1,3 +1,4 @@
+import { FileMetaData } from './message_types.js'
 import type { NotifStatus, UserStatus } from './string_literals.js'
 
 // ────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ export interface MessageListDTO {
 export interface MessageSendDTO {
   channelId: number
   content?: string
-  files?: any[]
+  files?: FileMetaData[]
 }
 
 export interface MessageTypingDTO {

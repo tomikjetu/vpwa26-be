@@ -1,5 +1,6 @@
 import { Server as IOServer, Socket } from "socket.io"
 import ChannelsService from "#services/channels_service"
+import BlacklistService from "#services/blacklist_service"
 
 import ChannelResolver from "#services/resolvers/channel_resolver"
 import MemberResolver from "#services/resolvers/member_resolver"
@@ -210,6 +211,8 @@ export default class ChannelsController {
       const targetUserId = target.userId
       const result = await ChannelsService.castKickVote(kicker!, target)
 
+      await BlacklistService.createEntry(targetUserId, data.channelId)
+
       if (!result.kicked) {
         this.broadcastToChannel(io, channel.id, "member:kick-voted", {
           channelId: channel.id,
@@ -252,5 +255,13 @@ export default class ChannelsController {
     } catch (err: any) {
       socket.emit("error", { error: err.message })
     }
+  }
+
+  public async postFiles() : Promise<void> {
+    
+  }
+
+  public async getFiles() : Promise<void> {
+    
   }
 }

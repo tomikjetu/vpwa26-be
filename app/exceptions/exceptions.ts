@@ -18,6 +18,15 @@ export class MembershipRequiredException extends Exception {
   }
 }
 
+export class MessageOwnerRequiredException extends Exception {
+  constructor(action_name: string) {
+    super(`You must be the owner of the message to ${action_name} in that message.`, {
+      status: 403,
+      code: 'MESSAGE_OWNERSHIP_REQUIRED',
+    })
+  }
+}
+
 export class MembershipProhibitedException extends Exception {
   constructor(action_name: string) {
     super(`If you want to ${action_name}, then you cannot already be a member of the channel.`, {
@@ -81,6 +90,14 @@ export class UserNotFoundException extends Exception {
   }
 }
 
+export class MessageNotFoundException extends Exception {
+  constructor() {
+    super('Message has not been found.', {
+      status: 403,
+      code: 'MESSAGE_NOT_FOUND',
+    })
+  }
+}
 
 export class IncorrectMessageFormatException extends Exception {
   constructor(constraint_name: string) {
@@ -96,6 +113,15 @@ export class ProhibitedKickVoteException extends Exception {
     super(`You cannot vote to kick ${invalid_target_name}.`, {
       status: 403,
       code: 'PROHIBITED_KICK_VOTE',
+    })
+  }
+}
+
+export class BlacklistEntryException extends Exception {
+  constructor() {
+    super("You are blacklisted from this channel.", {
+      status: 403,
+      code: 'BLACKLISTED',
     })
   }
 }

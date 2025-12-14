@@ -50,7 +50,6 @@ export default class AuthMiddleware {
           // If login fails for some reason, still attach user to ctx so downstream can use it
           console.warn('Auth middleware: failed to login user into guard', loginErr)
         }
-
         return next()
       } catch (error) {
         console.error('Auth middleware error while validating bearer token', error)

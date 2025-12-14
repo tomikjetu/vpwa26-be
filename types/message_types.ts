@@ -1,10 +1,17 @@
-import type { Readable } from "stream"
-
-export interface UploadedFile {
-    stream: Readable 
-    extname: string
+export interface FileMetaData {
     size: number
     mime_type: string
-    clientName: string
-    isValid: boolean
+    name: string
+    path: string
+}
+
+import type { ReadStream } from 'node:fs'
+
+export interface UploadedFile {
+  clientName: string
+  size: number
+  extname: string
+  mime_type: string
+  isValid: boolean
+  stream: ReadStream
 }

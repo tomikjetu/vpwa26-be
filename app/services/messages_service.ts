@@ -6,8 +6,7 @@ import { IncorrectMessageFormatException, MembershipRequiredException } from '#e
 import Message from '#models/message'
 import { DateTime } from 'luxon'
 import { MESSAGE_CONSTANTS } from '#constants/constants'
-import Drive from '@adonisjs/drive/services/main'
-import { UploadedFile } from 'types/message_types.js'
+import { FileMetaData } from 'types/message_types.js'
 
 /**
  * Controller class
@@ -26,7 +25,7 @@ export default class MessagesService {
             .related('messages')
             .query()
             .preload('files', (fileQuery) => {
-            fileQuery.select(['name', 'id', 'mime_type', 'size'])
+            fileQuery.select(['name', 'id', 'mime_type', 'size', 'path'])
             })
             .orderBy('created_at', 'desc')
             .offset(offset)
@@ -45,20 +44,20 @@ export default class MessagesService {
         channel: Channel,
         member: Member,
         user: User,
+        files?: FileMetaData[],
         content?: string,
-        files: UploadedFile[] = []
     ) {
 
         // Check exceptions
         if (!member) throw new MembershipRequiredException("send messages in a channel")
         
-        if ((!content || content.trim().length === 0) && files.length === 0) 
+        if ((!content || content.trim().length === 0) && files && files.length === 0) 
             throw new IncorrectMessageFormatException("message must contain either text or at least one file")
         
         if (content && content.length > MESSAGE_CONSTANTS.MAX_LENGTH) 
             throw new IncorrectMessageFormatException(`messsage must be less than ${MESSAGE_CONSTANTS.MAX_LENGTH} characters long`)
         
-        if (files.length > MESSAGE_CONSTANTS.MAX_FILE_COUNT) 
+        if (files && files.length > MESSAGE_CONSTANTS.MAX_FILE_COUNT) 
             throw new IncorrectMessageFormatException(`messsage can contain at most ${MESSAGE_CONSTANTS.MAX_FILE_COUNT} files`)
         
 
@@ -70,40 +69,12 @@ export default class MessagesService {
             createdAt: DateTime.now(),
         })
 
-        // Save files
-        const savedFiles: File[] = []
-
-        for (const file of files) {
-            if (!file.isValid) continue
-
-            const name = `${crypto.randomUUID()}.${file.extname}`
-
-            await Drive.use("fs").putStream(`uploads/${name}`, file.stream)
-
-            const saved = await File.create({
-                messageId: message.id,
-                channelId: channel.id,
-                path: `/uploads/${name}`,
-                name: file.clientName,
-                size: file.size,
-                mime_type: file.mime_type,
-            })
-
-            savedFiles.push(saved)
-        }
-
         return { 
             emit: {
                 id: message.id,
                 content: message.content,
                 createdAt: message.createdAt,
                 channelId: channel.id,
-                files: savedFiles.map(f => ({
-                    name: f.name,
-                    mime: f.mime_type,
-                    size: f.size,
-                    id: f.id
-                })),
                 user: {
                     id: user.id,
                     nick: user.nick

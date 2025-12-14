@@ -2,11 +2,11 @@ import User from '#models/user'
 import Channel from '#models/channel'
 import Invite from '#models/invite'
 import Member from '#models/member'
-import KickVote from '#models/kick_vote'
 import { DateTime } from 'luxon'
 import { DuplicateInviteException, InviteRequiredException, MemberInvitedAgainException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException } from '#exceptions/exceptions'
 import { AcceptInvite_Response, CreateInvite_Response } from 'types/service_return_types.js'
 import { KICK_VOTE_CONSTANTS } from '#constants/constants'
+import Blacklist from '#models/blacklist'
 
 /**
  * Controller class
@@ -33,16 +33,15 @@ export default class InvitesService {
         if (channel.isPrivate && !acting_member.isOwner) throw new OwnershipRequiredException("invite a new member to a private channel")
 
         // Check whether or not the member has been kicked
-        const kick_votes = await KickVote.query()
-            .where('target_member_id', invited_user.id)
+        const blacklist_entry = await Blacklist.query()
+            .where({ userId: invited_user.id, channelId: channel.id })
+            .first()
 
-        // Compute derived values from that one array
-        const total = kick_votes.length
-        const kicked_by_owner = kick_votes.some(vote => vote.kickedByOwner)
-        const is_kicked = (total >= KICK_VOTE_CONSTANTS.KICK_TRESHHOLD || kicked_by_owner)
+        const is_kicked = !!blacklist_entry
 
         if (is_kicked && !acting_member.isOwner) throw new OwnershipRequiredException("invite a member who has been kicked")
 
+        await blacklist_entry?.delete()
 
         // Check whether or not the user is already a member
         const existingMembership = await invited_user.related('member')
@@ -59,9 +58,6 @@ export default class InvitesService {
             .first()
 
         if (existingInvite) throw new DuplicateInviteException()
-
-        // If the inviter user is owner, delete all kick_vote entries upon invite
-        if (acting_member.isOwner) await Promise.all(kick_votes.map(vote => vote.delete()))
 
         // Create invitation
         const invite = await Invite.create({

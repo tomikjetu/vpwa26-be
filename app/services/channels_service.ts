@@ -1,17 +1,17 @@
 import Channel from '#models/channel'
+import Message from '#models/message'
 import User from '#models/user'
 import Invite from '#models/invite'
 import Member from '#models/member'
 import KickVote from '#models/kick_vote'
-import File from '#models/file'
 import { DateTime } from 'luxon'
 import { schema, rules } from '@adonisjs/validator'
 import { CHANNEL_CONSTANTS, KICK_VOTE_CONSTANTS } from '#constants/constants'
-import { ChannelNotFoundException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException, ProhibitedKickVoteException } from '#exceptions/exceptions'
-import Drive from '@adonisjs/drive/services/main'
+import { BlacklistEntryException, InviteRequiredException, MembershipProhibitedException, MembershipRequiredException, OwnershipRequiredException, ProhibitedKickVoteException } from '#exceptions/exceptions'
 import { validator } from '@adonisjs/validator'
 import type { NotifStatus } from 'types/string_literals.js'
-import { CancelChannel_Response, CastKickVote_Response, CreateChannel_Response, GetFile_Response, JoinChannel_Response } from 'types/service_return_types.js'
+import { CancelChannel_Response, CastKickVote_Response, CreateChannel_Response, JoinChannel_Response } from 'types/service_return_types.js'
+import Blacklist from '#models/blacklist'
 
 /**
  * Helper — creates a new channel
@@ -91,8 +91,13 @@ export default class ChannelsService {
             .where({ userId: user.id, channelId: channel.id })
             .first()
 
-        if (existing) throw new MembershipProhibitedException("join a channel")  
-        
+        if (existing) throw new MembershipProhibitedException("join a channel")
+
+        const blacklist_entry = await Blacklist.query()
+            .where({ userId: user.id, channelId: channel.id })
+            .first()
+
+        if (blacklist_entry) throw new BlacklistEntryException()
 
         // Private channel, must have invite
         if (channel.isPrivate) {
@@ -233,12 +238,11 @@ export default class ChannelsService {
             createdAt: DateTime.now(),
         })
 
-        const votes_count_obj = await KickVote
+        const kick_votes = await KickVote
             .query()
             .where('target_member_id', target_member.id)
-            .count('* as total')
 
-        const votes_count = Number(votes_count_obj[0].$extras.total) // extras is where the aggregate columns are saved to
+        const votes_count = kick_votes.length
 
         if (acting_member.isOwner || votes_count >= KICK_VOTE_CONSTANTS.KICK_TRESHHOLD) {
             await target_member.delete()
@@ -260,32 +264,24 @@ export default class ChannelsService {
         }
     }
 
-    /**
-     * Get a file
-     */
-    static async getFile(userId: number, fileId: number) : Promise<GetFile_Response> {
-        const file = await File.find(fileId)
-        if (!file) throw new Error("File not found")
+    static async inactiveChannelsCleanup() {
 
-        const channel = await Channel.find(file.channelId)
-        if (!channel) throw new ChannelNotFoundException()
+        console.log("Cleaning up inactive channels")
 
-        const isMember = await channel
-            .related("members")
-            .query()
-            .where("user_id", userId)
-            .first()
+        const channels = await Channel.query().select('id', 'created_at')
 
-        if (!isMember) throw new MembershipRequiredException("accessing files")
+        for (const channel of channels) {
+            const latest_message = await Message
+                .query()
+                .where('channelId', channel.id)
+                .orderBy('created_at', 'desc')
+                .first()
 
-        const stream = await Drive.use("fs").getStream(file.path)
+            let is_inactive = false
+            if (!latest_message) is_inactive = DateTime.now().diff(channel.createdAt, 'days').days > 30
+            else is_inactive = DateTime.now().diff(latest_message.createdAt, 'days').days > 30
 
-        return {
-            stream,
-            mime: file.mime_type,
-            name: file.name,
-            path: file.path,
-            channelId: file.channelId,
+            if (is_inactive) await channel.delete()
         }
     }
 }

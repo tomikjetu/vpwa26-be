@@ -5,6 +5,8 @@ import ChannelResolver from "#services/resolvers/channel_resolver"
 import MemberResolver from "#services/resolvers/member_resolver"
 import UserResolver from "#services/resolvers/user_resolver"
 import { extractMentions } from "#services/regex_helper"
+import FilesService from "#services/files_service"
+import { FileMetaData } from "types/message_types.js"
 
 export default class MessagesController {
     /**
@@ -108,7 +110,7 @@ export default class MessagesController {
   public async send(
     socket: Socket,
     io: IOServer,
-    data: { channelId: number; content?: string; files?: any[] }
+    data: { channelId: number; content?: string; files?: FileMetaData[] }
   ): Promise<void> {
         try {
             const user = await UserResolver.curr(socket)
@@ -119,9 +121,15 @@ export default class MessagesController {
                 channel,
                 member!,
                 user,
+                data.files,
                 data.content,
-                data.files || []
             )
+
+            if (data.files) {
+                for (const file of data.files) 
+                    await FilesService.createDatabaseEntry(result.message.id, channel.id, file)
+            }
+
             const mentionedMemberIds = extractMentions(result.message.content);
 
             const mentionsOnlyMembers = await MemberResolver.mentionsOnly(data.channelId);
@@ -135,7 +143,7 @@ export default class MessagesController {
             for(const mentionedUser of mentionedUsers) {
                 this.broadcastToUser(io, mentionedUser.id, "message:new", {
                     channelId: channel.id,
-                    message: result.emit,
+                    message: { ...result.emit, files: data.files },
                     memberId: member?.id,
                 })
             }
@@ -143,7 +151,7 @@ export default class MessagesController {
             // Broadcast to channel - socket.io handles delivery to connected users only
             this.broadcastToChannel(io, channel.id, "message:new", {
                 channelId: channel.id,
-                message: result.emit,
+                message: { ...result.emit, files: data.files },
                 memberId: member?.id,
             })
 
